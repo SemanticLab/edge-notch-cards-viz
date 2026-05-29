@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edge-notch card diagram — demo</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%;
+               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #fafaf6; color: #222; }
+  header { padding: 16px 24px; border-bottom: 1px solid #ddd; background: #fff; }
+  header h1 { margin: 0 0 4px; font-size: 18px; }
+  header p  { margin: 0; font-size: 13px; color: #666; }
+  main { padding: 16px 24px; box-sizing: border-box; }
+  .card-host { background: #fff; border: 1px solid #e3e3da; border-radius: 8px;
+               padding: 12px; height: 760px; }
+  @media (max-width: 900px) {
+    .card-host { height: 620px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Edge-notch card diagram</h1>
+  <p>Hover any category label or hole to see which slots encode it. The card starts as all holes; hovering a category notches its slots.</p>
+</header>
+<main>
+  <div class="card-host" id="card-host"></div>
+</main>
+
+<script src="edge_notch_card.js"></script>
+<script>
+(async function () {
+  const host = document.getElementById('card-host');
+
+  // Try the real decoding file first; fall back to a small inline decoding so
+  // the demo still runs when opened directly off disk (where fetch may fail).
+  let decoding;
+  try {
+    const resp = await fetch('notch_decoding.json');
+    if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
+    decoding = await resp.json();
+  } catch (e) {
+    decoding = FALLBACK_DECODING;
+  }
+
+  new EdgeNotchCard(host, { decoding });
+})();
+
+// Minimal fallback so the demo works without the JSON. Just a handful of
+// categories per edge — the real file has ~46 on the top edge.
+const FALLBACK_DECODING = {
+  top_field_codes: {
+    'physics':              { pair: [3, 20], recall: 0.94, n: 111 },
+    'mathematics':          { pair: [4, 24], recall: 0.94, n: 99 },
+    'electronics':          { pair: [7, 8],  recall: 0.91, n: 64 },
+    'chemistry':            { pair: [14, 20],recall: 0.93, n: 29 },
+    'optics':               { pair: [5, 22], recall: 0.98, n: 80 },
+    'photography':          { pair: [14, 22],recall: 0.92, n: 26 },
+    'mechanical engineering': { pair: [7, 13],recall: 0.91, n: 66 },
+    'holography':           { pair: [7, 15], recall: 1.00, n: 25 },
+    'hydraulics':           { pair: [11, 17],recall: 1.00, n: 19 },
+    'architecture':         { pair: [14, 25],recall: 0.94, n: 17 },
+  },
+  // Each state has a single primary needle (the one-needle query a McBee
+  // operator would actually use) plus companion positions that are nearly
+  // always co-notched (likely wide grouped notches or within-state regions).
+  bottom_geo_codes: {
+    'New York':      { n: 278, confidence: 'high', primary: { pos: 16, recall: 0.953 },
+                       companions: [
+                         { pos: 15, cooccur_with_primary: 1.00, adjacent_to_primary: true },
+                         { pos: 6,  cooccur_with_primary: 1.00 },
+                       ] },
+    'New Jersey':    { n: 111, confidence: 'high', primary: { pos: 17, recall: 0.874 },
+                       companions: [
+                         { pos: 24, cooccur_with_primary: 1.00 },
+                         { pos: 22, cooccur_with_primary: 1.00 },
+                       ] },
+    'California':    { n: 51,  confidence: 'high', primary: { pos: 8, recall: 0.980 },
+                       companions: [
+                         { pos: 6, cooccur_with_primary: 0.94 },
+                         { pos: 3, cooccur_with_primary: 0.92 },
+                       ] },
+    'Massachusetts': { n: 50,  confidence: 'high', primary: { pos: 7, recall: 0.980 },
+                       companions: [
+                         { pos: 3, cooccur_with_primary: 1.00 },
+                         { pos: 5, cooccur_with_primary: 1.00 },
+                       ] },
+    'Pennsylvania':  { n: 38,  confidence: 'high', primary: { pos: 20, recall: 0.842 },
+                       companions: [
+                         { pos: 9, cooccur_with_primary: 1.00 },
+                         { pos: 5, cooccur_with_primary: 1.00 },
+                       ] },
+    'Maryland':      { n: 20,  confidence: 'high', primary: { pos: 18, recall: 0.950 },
+                       companions: [
+                         { pos: 4, cooccur_with_primary: 1.00 },
+                         { pos: 3, cooccur_with_primary: 1.00 },
+                       ] },
+    'Washington':    { n: 33,  confidence: 'medium', primary: { pos: 7, recall: 0.515 }, companions: [] },
+    'Canada':        { n: 23,  confidence: 'medium', primary: { pos: 12, recall: 0.739 },
+                       companions: [{ pos: 5, cooccur_with_primary: 1.00 }] },
+    'Connecticut':   { n: 19,  confidence: 'medium', primary: { pos: 10, recall: 0.947 },
+                       companions: [
+                         { pos: 9,  cooccur_with_primary: 1.00, adjacent_to_primary: true },
+                         { pos: 22, cooccur_with_primary: 1.00 },
+                       ] },
+    'Virginia':      { n: 12,  confidence: 'medium', primary: { pos: 22, recall: 0.833 },
+                       companions: [
+                         { pos: 21, cooccur_with_primary: 0.80, adjacent_to_primary: true },
+                         { pos: 6, cooccur_with_primary: 0.80 },
+                       ] },
+    'Ohio':          { n: 12,  confidence: 'medium', primary: { pos: 8, recall: 0.917 },
+                       companions: [
+                         { pos: 22, cooccur_with_primary: 1.00 },
+                         { pos: 16, cooccur_with_primary: 1.00 },
+                       ] },
+    'District of Columbia': { n: 10, confidence: 'medium', primary: { pos: 18, recall: 0.600 }, companions: [] },
+    'Texas':         { n: 9, confidence: 'low', primary: { pos: 14, recall: 0.889 }, companions: [] },
+    'Illinois':      { n: 9, confidence: 'low', primary: { pos: 9, recall: 1.000 }, companions: [] },
+    'Michigan':      { n: 5, confidence: 'low', primary: { pos: 14, recall: 1.000 }, companions: [] },
+    'Florida':       { n: 4, confidence: 'anecdotal', primary: { pos: 13, recall: 1.000 }, companions: [] },
+    'Wisconsin':     { n: 4, confidence: 'anecdotal', primary: { pos: 19, recall: 1.000 }, companions: [] },
+    'Kansas':        { n: 4, confidence: 'anecdotal', primary: { pos: 23, recall: 1.000 }, companions: [] },
+  },
+  right_alpha: {
+    per_letter_strong_positions: {
+      A: [12, 13], B: [13], C: [13], E: [8, 13], F: [13],
+      H: [11, 12], K: [12], M: [12], N: [12], O: [10, 11],
+      R: [11], S: [11], V: [9, 10],
+    },
+  },
+};
+</script>
+</body>
+</html>

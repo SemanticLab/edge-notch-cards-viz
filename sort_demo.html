@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Edge-notch card sorting — 3D demo</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
+               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #1a3a6e; color: #f6efd6; }
+  #stage { position: absolute; inset: 0; }
+  #stage canvas { display: block; }
+  header { position: absolute; top: 0; left: 0; right: 340px;
+           padding: 12px 20px; background: rgba(14, 37, 72, 0.85);
+           border-bottom: 1px solid #0e2548; z-index: 5; backdrop-filter: blur(4px); }
+  header h1 { margin: 0 0 2px; font-size: 16px; }
+  header p  { margin: 0; font-size: 12px; color: #aabad6; line-height: 1.4; }
+  .sidebar { position: absolute; top: 0; right: 0; width: 340px;
+             background: rgba(14, 37, 72, 0.92); border-left: 1px solid #1a3a6e;
+             border-bottom: 1px solid #1a3a6e; border-bottom-left-radius: 8px;
+             padding: 16px; box-sizing: border-box; font-size: 13px;
+             line-height: 1.5; color: #d6dfe9; z-index: 5;
+             backdrop-filter: blur(4px); }
+  #can-toggle { position: absolute; bottom: 8px; right: 8px; width: 24px;
+                height: 24px; padding: 0; background: transparent;
+                border: 1px solid transparent; border-radius: 4px;
+                cursor: pointer; opacity: 0.5; transition: opacity 0.15s, border-color 0.15s; }
+  #can-toggle:hover { opacity: 0.9; border-color: #aabad6; }
+  #can-toggle.active { opacity: 1; border-color: #fff3a6; }
+  #can-toggle svg { width: 100%; height: 100%; fill: #f6efd6; display: block; }
+  .sidebar h2 { margin: 0 0 8px; font-size: 14px; color: #f6efd6; }
+  .sidebar p { margin: 0 0 12px; color: #aabad6; }
+  .sidebar code { background: #1a3a6e; padding: 1px 4px; border-radius: 3px;
+                   font-size: 12px; color: #f6efd6; }
+  select, button { font: inherit; padding: 7px 9px; background: #f6efd6;
+                    color: #1a1a1a; border: 1px solid #aabad6; border-radius: 4px;
+                    cursor: pointer; }
+  select { width: 100%; margin-bottom: 8px; }
+  button { margin-right: 6px; margin-bottom: 6px; }
+  button:hover { background: #fff3a6; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .stats { background: #1a3a6e; border-radius: 4px; padding: 10px;
+            margin-top: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 12px; line-height: 1.55; }
+  .stats .big { font-size: 28px; font-weight: 600; color: #fff3a6; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 6px 0 10px; }
+  .row label { font-size: 12px; color: #aabad6; }
+  .row input[type=range] { flex: 1; }
+  #loading { position: absolute; inset: 0; display: flex;
+             align-items: center; justify-content: center; z-index: 10;
+             background: #1a3a6e; color: #f6efd6; font-size: 14px;
+             flex-direction: column; gap: 12px; }
+  #loading .bar { width: 240px; height: 6px; background: #0e2548;
+                  border-radius: 3px; overflow: hidden; }
+  #loading .bar > div { height: 100%; background: #fff3a6; width: 0%;
+                        transition: width 0.1s linear; }
+
+  /* Card image modal (front/back from S3), opened by clicking an out-of-deck card */
+  #card-modal { position: fixed; inset: 0; z-index: 1000; display: none;
+                align-items: center; justify-content: center; background: rgba(8,16,32,0.74); }
+  #card-modal.show { display: flex; }
+  .cm-panel { position: relative; background: #eef1f4; border-radius: 12px;
+              padding: 16px 18px 18px; width: min(820px, 92vw); max-height: 90vh; overflow-y: auto;
+              box-shadow: 0 12px 48px rgba(0,0,0,0.55);
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .cm-title { margin: 0 30px 12px 0; font-size: 16px; font-weight: 600; color: #11324f; }
+  .cm-close { position: absolute; top: 10px; right: 12px; width: 28px; height: 28px; border: 0;
+              border-radius: 50%; background: #d6dbe2; color: #2a2f3a; font-size: 18px; padding: 0;
+              cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .cm-close:hover { background: #c3ccd6; }
+  .cm-side { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8a93a0;
+             margin: 8px 0 3px; }
+  .cm-img { width: 100%; display: block; border-radius: 6px; background: #eef1f4; min-height: 40px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+
+<aside class="sidebar">
+  <button id="can-toggle" title="Toggle soda can scale reference" aria-label="Toggle soda can">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="m68.051 24.352c-1.375-0.99609-2.3633-2.5312-2.8008-4.3359-0.11328-1.2891-1.0469-1.2891-1.6875-1.2891h-27.328c-1.0586 0-1.4219 0.94531-1.4766 1.25-0.42969 1.8242-1.4258 3.3789-2.8086 4.3789-0.20703 0.14844-0.62109 0.42969-0.62109 1.2188v48.863c0 0.71484 0.35938 1.0234 0.62109 1.2188 1.375 0.99609 2.3633 2.5312 2.8008 4.3359 0.10156 0.73437 0.73438 1.293 1.4844 1.293h27.527c0.69922 0 1.3086-0.48438 1.4648-1.1719 0.42188-1.8594 1.4258-3.4414 2.8281-4.457 0.28125-0.21875 0.61328-0.51562 0.61328-1.2188l-0.003907-48.871c0-0.69922-0.3125-1-0.61328-1.2148zm-33.723 11.836h22.668v27.629l-22.668-0.003906zm0 36.746v-6.1172h24.168c0.82812 0 1.5-0.67188 1.5-1.5v-30.629c0-0.82812-0.67188-1.5-1.5-1.5h-24.168v-6.1172h31.336v45.863zm3.043-51.211h25.254c0.28516 0.84375 0.69141 1.6172 1.1562 2.3438h-27.562c0.46484-0.72656 0.86719-1.5 1.1523-2.3438zm25.258 56.555h-25.254c-0.28516-0.84375-0.69141-1.6172-1.1562-2.3477h0.015625l27.527 0.003906h0.023437c-0.46875 0.72656-0.87109 1.5-1.1562 2.3438z"/></svg>
+  </button>
+  <h2>Pick what to sort for</h2>
+  <select id="cat-select"><option>(loading...)</option></select>
+  <div>
+    <button id="sort-btn" disabled>Insert needle &amp; lift</button>
+    <button id="reset-btn">Reset deck</button>
+  </div>
+  <div class="row">
+    <label for="speed">Speed</label>
+    <input id="speed" type="range" min="0.2" max="3" step="0.1" value="2.5">
+    <span id="speed-label" style="font-size:11px; color:#aabad6; width: 32px;">2.5×</span>
+  </div>
+  <div class="stats" id="stats">Loading…</div>
+</aside>
+
+<div id="loading">
+  <div>Building 717 card meshes…</div>
+  <div class="bar"><div id="loading-bar"></div></div>
+</div>
+
+<div id="card-modal">
+  <div class="cm-panel">
+    <button class="cm-close" id="cm-close" aria-label="Close">×</button>
+    <h3 class="cm-title" id="cm-title"></h3>
+    <div class="cm-side">Front</div>
+    <img class="cm-img" id="cm-front" alt="card front">
+    <div class="cm-side">Back</div>
+    <img class="cm-img" id="cm-back" alt="card back">
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three":            "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/":    "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<!-- poly2tri: robust constrained-Delaunay triangulator that handles
+     polygons-with-holes natively (no earcut-style bridge cuts). Exposed
+     globally as `window.poly2tri`. -->
+<script src="https://cdn.jsdelivr.net/npm/poly2tri@1.5.0/dist/poly2tri.js"></script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const stage = document.getElementById('stage');
+const sel = document.getElementById('cat-select');
+const sortBtn = document.getElementById('sort-btn');
+const resetBtn = document.getElementById('reset-btn');
+const stats = document.getElementById('stats');
+const speedSlider = document.getElementById('speed');
+const speedLabel = document.getElementById('speed-label');
+const loadingDiv = document.getElementById('loading');
+const loadingBar = document.getElementById('loading-bar');
+
+// =============================================================
+// Constants — card geometry
+// =============================================================
+// McBee proportions (units are "card units"; we'll scale into world).
+const CARD_W = 36;
+const CARD_H = 15;
+const CARD_T = 0.05;          // physical thickness of one card's mesh
+const CARD_PITCH = 0.07;      // distance from one card's center to the next.
+                              // > CARD_T so adjacent cards don't share a Z
+                              // plane (avoids hole-face Z-fighting).
+const CHAMFER = 1.5;          // 45° corner cut size
+const HOLE_R = 0.27;          // hole radius (slightly smaller than 0.30 so
+                              // that holes and the notch arcs of neighboring
+                              // slots don't quite touch — poly2tri rejects
+                              // geometry where features intersect)
+const EDGE_INSET = 0.85;      // distance from edge to hole center
+const NOTCH_DEPTH = EDGE_INSET + HOLE_R + 0.05; // how deep notch slot is cut (to edge)
+
+const SLOT_COUNTS = { top: 36, bottom: 37, left: 16, right: 15 };
+
+// Compute the (x,y) center of a slot hole on the front face of a card.
+// Coordinate system: card lies in the X-Y plane, centered at origin.
+// X runs along width (left = -CARD_W/2, right = +CARD_W/2),
+// Y runs along height (bottom = -CARD_H/2, top = +CARD_H/2).
+function slotXY(edge, pos) {
+  const count = SLOT_COUNTS[edge];
+  if (edge === 'top' || edge === 'bottom') {
+    const margin = 1.4;
+    const span = CARD_W - 2 * margin;
+    const step = span / (count - 1);
+    const x = -CARD_W / 2 + margin + step * (pos - 1);
+    const y = edge === 'top' ? CARD_H / 2 - EDGE_INSET
+                              : -CARD_H / 2 + EDGE_INSET;
+    return { x, y };
+  } else {
+    const margin = 1.0;
+    const span = CARD_H - 2 * margin;
+    const step = span / (count - 1);
+    const y = -CARD_H / 2 + margin + step * (pos - 1);
+    const x = edge === 'left' ? -CARD_W / 2 + EDGE_INSET
+                               :  CARD_W / 2 - EDGE_INSET;
+    return { x, y };
+  }
+}
+
+// Returns true if (x,y) is inside the chamfered-away triangle at top-right
+// of the card.
+function inChamfer(x, y) {
+  // Chamfer triangle vertices: (CARD_W/2 - CHAMFER, CARD_H/2),
+  //                            (CARD_W/2,            CARD_H/2),
+  //                            (CARD_W/2,            CARD_H/2 - CHAMFER)
+  const dx = x - (CARD_W / 2 - CHAMFER);
+  const dy = y - (CARD_H / 2 - CHAMFER);
+  if (dx < -0.001 || dy < -0.001) return false;
+  // inside the corner box; cut by the diagonal x + y > 0 (in shifted coords)
+  return (dx + dy) > CHAMFER - 0.001;
+}
+
+// Returns true if a circle of radius `r` centered at (x, y) would touch or
+// cross the chamfer's diagonal cut line. Used to skip holes that would
+// poke through the chamfered-away corner.
+function circleTouchesChamfer(x, y, r) {
+  // Chamfer diagonal line: from (CARD_W/2 - CHAMFER, CARD_H/2) to
+  // (CARD_W/2, CARD_H/2 - CHAMFER). In shifted coords (dx = x - (halfW - C),
+  // dy = y - (halfH - C)) the line is dx + dy = C. The signed perpendicular
+  // distance from the hole center is (dx + dy - C) / sqrt(2).
+  // We only care about holes on the chamfer side (dx > 0 OR dy > 0).
+  const halfW = CARD_W / 2, halfH = CARD_H / 2;
+  const dx = x - (halfW - CHAMFER);
+  const dy = y - (halfH - CHAMFER);
+  if (dx < 0 && dy < 0) return false;          // far from chamfer corner
+  const signedDist = (dx + dy - CHAMFER) / Math.SQRT2;
+  // Positive = inside cut region; negative = on the card side.
+  // Touches if signedDist > -r (i.e., the circle reaches the cut line).
+  return signedDist > -r;
+}
+
+// =============================================================
+// Build card outline shape with notches cut into the perimeter
+// =============================================================
+// Returns a THREE.Shape — outline of the card (chamfered top-right + notches
+// cut from each edge where this card is notched). Holes (un-notched slot
+// positions) are added as inner holes on the shape.
+function buildCardShape(notches /* {top:Set,bottom:Set,left:Set,right:Set} */) {
+  const shape = new THREE.Shape();
+  const halfW = CARD_W / 2, halfH = CARD_H / 2;
+  // We'll walk the perimeter counter-clockwise (standard for outer contour),
+  // starting at bottom-left corner, inserting notch slots along the way.
+  // Order: bottom edge (left→right), right edge (bottom→top), top edge
+  // (right→left, with chamfer), left edge (top→bottom).
+
+  // Half-width of the notch slot opening. Must be ≥ HOLE_R so the notch
+  // fully exposes the hole (otherwise the slot is narrower than the hole
+  // and you get a bizarre keyhole shape). We use HOLE_R exactly — adding
+  // a margin would cause adjacent notches (like top slots 33 & 34) to
+  // leave only a hair-thin tab of card between them, which can confuse
+  // ExtrudeGeometry's triangulator.
+  const notchHalfW = HOLE_R;
+
+  // Helper: returns sorted list of slot positions for given edge that are notched
+  const sortedNotches = (edge) => {
+    const arr = Array.from(notches[edge] || []).filter((p) => {
+      // Don't add a notch in the chamfered-away corner
+      const { x, y } = slotXY(edge, p);
+      return !inChamfer(x, y);
+    });
+    arr.sort((a, b) => a - b);
+    return arr;
+  };
+
+  shape.moveTo(-halfW, -halfH);  // start at bottom-left
+
+  // ---- BOTTOM EDGE: traverse left → right (x increasing) at y = -halfH ----
+  for (const p of sortedNotches('bottom')) {
+    const { x } = slotXY('bottom', p);
+    const yCenter = -halfH + EDGE_INSET;
+    // Walk to just before the notch
+    shape.lineTo(x - notchHalfW, -halfH);
+    // Cut in: down→up so notch opens at edge
+    shape.lineTo(x - notchHalfW, yCenter);
+    // Curve around the hole position (semicircle facing the card interior)
+    shape.absarc(x, yCenter, notchHalfW, Math.PI, 0, true);
+    shape.lineTo(x + notchHalfW, -halfH);
+  }
+  shape.lineTo(halfW, -halfH);
+
+  // ---- RIGHT EDGE: traverse bottom → top (y increasing) at x = halfW,
+  // stopping before the chamfer ----
+  for (const p of sortedNotches('right')) {
+    const { y } = slotXY('right', p);
+    const xCenter = halfW - EDGE_INSET;
+    shape.lineTo(halfW, y - notchHalfW);
+    shape.lineTo(xCenter, y - notchHalfW);
+    shape.absarc(xCenter, y, notchHalfW, -Math.PI / 2, Math.PI / 2, true);
+    shape.lineTo(halfW, y + notchHalfW);
+  }
+  shape.lineTo(halfW, halfH - CHAMFER);
+  // Chamfer diagonal cut
+  shape.lineTo(halfW - CHAMFER, halfH);
+
+  // ---- TOP EDGE: traverse right → left (x decreasing) at y = halfH ----
+  // sorted notches descending in x. The arc sweeps from angle 0 (right side
+  // of circle) clockwise through angle -π (= +π, left side), passing
+  // through the BOTTOM of the circle (interior of card).
+  const topNotchesDesc = sortedNotches('top').slice().reverse();
+  for (const p of topNotchesDesc) {
+    const { x } = slotXY('top', p);
+    const yCenter = halfH - EDGE_INSET;
+    shape.lineTo(x + notchHalfW, halfH);
+    shape.lineTo(x + notchHalfW, yCenter);
+    shape.absarc(x, yCenter, notchHalfW, 0, Math.PI, true);
+    shape.lineTo(x - notchHalfW, halfH);
+  }
+  shape.lineTo(-halfW, halfH);
+
+  // ---- LEFT EDGE: traverse top → bottom (y decreasing) at x = -halfW ----
+  const leftNotchesDesc = sortedNotches('left').slice().reverse();
+  for (const p of leftNotchesDesc) {
+    const { y } = slotXY('left', p);
+    const xCenter = -halfW + EDGE_INSET;
+    shape.lineTo(-halfW, y + notchHalfW);
+    shape.lineTo(xCenter, y + notchHalfW);
+    shape.absarc(xCenter, y, notchHalfW, Math.PI / 2, -Math.PI / 2, true);
+    shape.lineTo(-halfW, y - notchHalfW);
+  }
+  shape.lineTo(-halfW, -halfH);
+
+  // ---- HOLES: every slot that is NOT notched and not in the chamfer ----
+  for (const edge of ['top', 'bottom', 'left', 'right']) {
+    const count = SLOT_COUNTS[edge];
+    for (let pos = 1; pos <= count; pos++) {
+      if ((notches[edge] || new Set()).has(pos)) continue;
+      const { x, y } = slotXY(edge, pos);
+      if (inChamfer(x, y)) continue;
+      // Skip holes that the chamfer diagonal would cut through — drawing
+      // them would create an outline that crosses the outer perimeter,
+      // which poly2tri rejects as intersecting constraints.
+      if (circleTouchesChamfer(x, y, HOLE_R + 0.02)) continue;
+      const holePath = new THREE.Path();
+      // Use clockwise=true so the hole's vertex order is CW relative to
+      // the CCW outer contour. ShapeUtils.triangulateShape (and earcut)
+      // both expect holes in opposite winding to the outer.
+      holePath.absarc(x, y, HOLE_R, 0, Math.PI * 2, true);
+      shape.holes.push(holePath);
+    }
+  }
+  return shape;
+}
+
+// Manually build a card's BufferGeometry from its Shape. Avoiding
+// ExtrudeGeometry because earcut's hole-bridging leaves thin triangular
+// slivers protruding into each hole on the front/back face. By calling
+// THREE.ShapeUtils.triangulateShape directly, we get clean face
+// triangulation without the bridge artifacts.
+//
+// Geometry assembly:
+//   - front face: 2D triangulation of (outer minus holes) at z = +CARD_T/2
+//   - back face:  same triangulation, reversed winding, at z = -CARD_T/2
+//   - outer side walls: quad per outer-perimeter edge segment
+//   - hole side walls: quad per hole-perimeter edge segment
+// All vertices are flat-shaded (per-face normals via duplicated verts).
+
+// Densify a 2D polygon: any segment longer than `maxLen` is subdivided into
+// smaller segments. This gives the triangulator more candidate bridge
+// endpoints and dramatically reduces sliver artifacts when many holes sit
+// close to a long flat perimeter edge.
+function densifyPolygon(pts, maxLen) {
+  const out = [];
+  const n = pts.length;
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[i];
+    const p1 = pts[(i + 1) % n];
+    out.push(p0);
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len > maxLen) {
+      const steps = Math.ceil(len / maxLen);
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        out.push(new THREE.Vector2(p0.x + dx * t, p0.y + dy * t));
+      }
+    }
+  }
+  return out;
+}
+
+function buildCardBufferGeometry(shape) {
+  const halfT = CARD_T / 2;
+  // Sample outer contour and holes as straight-line polygons.
+  let outer = shape.getPoints(12);   // CCW outer contour
+  // If the contour closes (first == last), drop the duplicate.
+  if (outer.length > 1 &&
+      Math.abs(outer[0].x - outer[outer.length - 1].x) < 1e-6 &&
+      Math.abs(outer[0].y - outer[outer.length - 1].y) < 1e-6) {
+    outer.pop();
+  }
+  // (densification removed — caused worse artifacts)
+
+  const holes = shape.holes.map((h) => {
+    const pts = h.getPoints(12);
+    if (pts.length > 1 &&
+        Math.abs(pts[0].x - pts[pts.length - 1].x) < 1e-6 &&
+        Math.abs(pts[0].y - pts[pts.length - 1].y) < 1e-6) {
+      pts.pop();
+    }
+    return pts;
+  });
+
+  // Triangulate the front face with poly2tri (constrained-Delaunay).
+  // poly2tri natively handles polygons-with-holes — no bridge cuts.
+  // It needs each input as an array of {x, y} objects.
+  const sweepContext = new poly2tri.SweepContext(
+    outer.map((p) => new poly2tri.Point(p.x, p.y))
+  );
+  for (const h of holes) {
+    sweepContext.addHole(h.map((p) => new poly2tri.Point(p.x, p.y)));
+  }
+  let p2tTriangles;
+  try {
+    sweepContext.triangulate();
+    p2tTriangles = sweepContext.getTriangles();
+  } catch (e) {
+    console.warn('poly2tri failed:', e.message);
+    p2tTriangles = [];
+  }
+  // Convert poly2tri triangles into our face-triangle list: each entry is
+  // 3 {x, y} points. We don't need indexed geometry — we emit duplicated
+  // vertices per triangle for flat shading anyway.
+  const faceTriangles = p2tTriangles.map((t) => [
+    t.getPoint(0), t.getPoint(1), t.getPoint(2),
+  ]);
+
+  const positions = [];
+  const normals = [];
+
+  // --- FRONT FACE (z = +halfT, normal +Z) ---
+  for (const [va, vb, vc] of faceTriangles) {
+    positions.push(va.x, va.y, halfT,  vb.x, vb.y, halfT,  vc.x, vc.y, halfT);
+    normals.push(0,0,1,  0,0,1,  0,0,1);
+  }
+  // --- BACK FACE (z = -halfT, normal -Z) — reverse winding ---
+  for (const [va, vb, vc] of faceTriangles) {
+    positions.push(va.x, va.y, -halfT,  vc.x, vc.y, -halfT,  vb.x, vb.y, -halfT);
+    normals.push(0,0,-1,  0,0,-1,  0,0,-1);
+  }
+
+  // --- SIDE WALLS ---
+  // Outer contour walks CCW; holes walk CW. In both cases, the outward
+  // normal (pointing away from the card material) sits to the RIGHT of the
+  // walking direction. For walking dir (dx,dy), that's (dy, -dx) normalized.
+  // We also use DoubleSide on the material, so winding doesn't strictly
+  // matter for visibility — only for correct lighting.
+  function addWallLoop(pts) {
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[i];
+      const p1 = pts[(i + 1) % n];
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1e-9) continue;
+      const nx = dy / len;
+      const ny = -dx / len;
+      // Two triangles per quad, outward-facing winding.
+      positions.push(
+        p0.x, p0.y,  halfT,
+        p0.x, p0.y, -halfT,
+        p1.x, p1.y, -halfT,
+      );
+      normals.push(nx, ny, 0,  nx, ny, 0,  nx, ny, 0);
+      positions.push(
+        p0.x, p0.y,  halfT,
+        p1.x, p1.y, -halfT,
+        p1.x, p1.y,  halfT,
+      );
+      normals.push(nx, ny, 0,  nx, ny, 0,  nx, ny, 0);
+    }
+  }
+  addWallLoop(outer);
+  for (const h of holes) addWallLoop(h);
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  return geom;
+}
+
+// Cache for card geometries (built lazily). Key = stringified notch sets.
+const geomCache = new Map();
+function getCardGeometry(notches) {
+  const key = `T${[...notches.top].sort((a,b)=>a-b).join(',')}` +
+              `|B${[...notches.bottom].sort((a,b)=>a-b).join(',')}` +
+              `|L${[...notches.left].sort((a,b)=>a-b).join(',')}` +
+              `|R${[...notches.right].sort((a,b)=>a-b).join(',')}`;
+  let g = geomCache.get(key);
+  if (g) return g;
+  const shape = buildCardShape(notches);
+  g = buildCardBufferGeometry(shape);
+  geomCache.set(key, g);
+  return g;
+}
+
+// =============================================================
+// Scene setup
+// =============================================================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x9ec8eb);   // sky blue
+renderer.shadowMap.enabled = false;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// Fog tinted to match the sky so far-away clouds and cards blend into it.
+scene.fog = new THREE.Fog(0x9ec8eb, 400, 900);
+
+const camera = new THREE.PerspectiveCamera(
+  35, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(70, 35, 70);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 0);
+
+// =============================================================
+// Click to remove (debug tool for inspecting individual cards)
+// =============================================================
+// Click any card and it disappears + logs its stem and notch arrays to the
+// console. Useful for hunting down a card whose geometry is glitched.
+// We distinguish click-vs-drag by requiring the pointer to be within a few
+// pixels of where it went down — otherwise OrbitControls dragging would
+// trigger removals.
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let pointerDownAt = null;
+renderer.domElement.addEventListener('pointerdown', (ev) => {
+  pointerDownAt = { x: ev.clientX, y: ev.clientY };
+});
+renderer.domElement.addEventListener('pointerup', (ev) => {
+  if (!pointerDownAt) return;
+  const dx = ev.clientX - pointerDownAt.x;
+  const dy = ev.clientY - pointerDownAt.y;
+  pointerDownAt = null;
+  if (dx * dx + dy * dy > 16) return;  // moved more than 4px → it was a drag
+
+  const rect = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+
+  // First check the can — if visible and not already mid-kick, clicking
+  // it sends it flying off the screen.
+  if (canGroup.visible && !canKicked) {
+    const canHits = raycaster.intersectObject(canGroup, true);
+    if (canHits.length > 0) {
+      kickCan();
+      return;
+    }
+  }
+
+  // Gather all CARD meshes currently in the scene (deck + dropped + aside).
+  // We filter to meshes that have a userData.stem so we don't pick up the
+  // attached label planes.
+  const targets = [];
+  const pushIfCard = (n) => {
+    if (n.isMesh && n.userData && n.userData.stem) targets.push(n);
+  };
+  if (deckGroup) deckGroup.traverse(pushIfCard);
+  if (droppedGroup) droppedGroup.traverse(pushIfCard);
+  if (asideGroup) asideGroup.traverse(pushIfCard);
+  const hits = raycaster.intersectObjects(targets, false);
+  if (hits.length === 0) return;
+
+  const hitMesh = hits[0].object;
+  const stem = hitMesh.userData.stem;
+  // Find the cardEntry for this mesh.
+  const entry = cardMeshes.find((c) => c.mesh === hitMesh);
+  if (!entry) return;
+  // A card that's already OUT of the deck (sorted-out or set aside) → open a
+  // modal with its front/back images instead of moving it.
+  if (entry.dropped || entry.setAside) {
+    openCardModal(stem);
+    return;
+  }
+  setAsideCard(entry);
+});
+
+// ---- card image modal (front/back from the S3 bucket) ----
+const CARD_S3 = 'https://semlab.s3.us-east-1.amazonaws.com/images/technical-services-program/';
+const cardModal = document.getElementById('card-modal');
+function openCardModal(stem) {
+  const c = (cardsFull && cardsFull[stem]) || {};
+  const fn = c.fn || {};
+  document.getElementById('cm-title').textContent = c.n || stem;
+  document.getElementById('cm-front').src = fn.fr ? CARD_S3 + fn.fr : '';
+  document.getElementById('cm-back').src  = fn.br ? CARD_S3 + fn.br : '';
+  cardModal.classList.add('show');
+}
+function closeCardModal() {
+  cardModal.classList.remove('show');
+  document.getElementById('cm-front').src = '';
+  document.getElementById('cm-back').src = '';
+}
+document.getElementById('cm-close').addEventListener('click', closeCardModal);
+cardModal.addEventListener('click', (e) => { if (e.target === cardModal) closeCardModal(); });
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && cardModal.classList.contains('show')) closeCardModal();
+});
+
+// Lighting
+const ambient = new THREE.AmbientLight(0xffffff, 1.1);
+scene.add(ambient);
+const sun = new THREE.DirectionalLight(0xfff3d6, 0.95);
+sun.position.set(40, 60, 30);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xaaccff, 0.35);
+fill.position.set(-30, 20, -20);
+scene.add(fill);
+
+// =============================================================
+// Clouds — billboarded sprites drifting across the sky
+// =============================================================
+// We draw a single soft-circle cloud texture once into a canvas, then
+// scatter ~30 sprites around the scene at various distances. Each sprite
+// drifts slowly along +X (or whatever direction we choose) and wraps when
+// it goes off the far side, so there's always something gently moving.
+
+const cloudCanvas = document.createElement('canvas');
+cloudCanvas.width = 256;
+cloudCanvas.height = 128;
+{
+  const cctx = cloudCanvas.getContext('2d');
+  // Draw a few overlapping radial gradients to get a fluffy shape.
+  cctx.clearRect(0, 0, 256, 128);
+  function puff(cx, cy, r, alpha) {
+    const g = cctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, `rgba(255,255,255,${alpha})`);
+    g.addColorStop(0.6, `rgba(255,255,255,${alpha * 0.5})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    cctx.fillStyle = g;
+    cctx.beginPath();
+    cctx.arc(cx, cy, r, 0, Math.PI * 2);
+    cctx.fill();
+  }
+  puff(80, 80, 55, 0.95);
+  puff(130, 70, 60, 0.95);
+  puff(180, 80, 50, 0.95);
+  puff(100, 50, 40, 0.85);
+  puff(160, 50, 45, 0.85);
+  puff(70, 95, 30, 0.7);
+  puff(195, 95, 30, 0.7);
+}
+const cloudTexture = new THREE.CanvasTexture(cloudCanvas);
+cloudTexture.colorSpace = THREE.SRGBColorSpace;
+
+const cloudMaterial = new THREE.SpriteMaterial({
+  map: cloudTexture,
+  transparent: true,
+  depthWrite: false,
+  fog: true,
+  opacity: 0.85,
+});
+
+const clouds = [];
+const NUM_CLOUDS = 30;
+// Scatter clouds in a box around the deck — wide on X (so drift has room),
+// up and around in Y, and a range of distances on Z.
+for (let i = 0; i < NUM_CLOUDS; i++) {
+  const sprite = new THREE.Sprite(cloudMaterial.clone());
+  const scale = 20 + Math.random() * 40;
+  sprite.scale.set(scale * 2, scale, 1);  // wider than tall
+  sprite.position.set(
+    -300 + Math.random() * 600,
+    -80 + Math.random() * 200,
+    -300 + Math.random() * 400,
+  );
+  sprite.userData.driftSpeed = 0.5 + Math.random() * 1.5;  // units per second
+  sprite.material.opacity = 0.5 + Math.random() * 0.4;
+  scene.add(sprite);
+  clouds.push(sprite);
+}
+
+const frameClock = new THREE.Clock();
+function updateClouds(dt) {
+  for (const c of clouds) {
+    c.position.x += c.userData.driftSpeed * dt;
+    if (c.position.x > 320) {
+      c.position.x = -320;
+      c.position.z = -300 + Math.random() * 400;
+      c.position.y = -80 + Math.random() * 200;
+    }
+  }
+}
+
+// =============================================================
+// Soda can on top of the deck (for scale reference)
+// =============================================================
+// Real card: 3.25" × 7". A standard 12oz soda can: 2.6" diameter × 4.83"
+// tall. Using the card's short dimension as the reference (15 scene units
+// = 3.25"), 1 scene unit ≈ 0.217". So the can is roughly 12 units
+// diameter × 22 units tall.
+
+// Scale: 1 scene unit ≈ 0.217" (since CARD_H = 15 units = 3.25" short card edge).
+// A 12 oz soda can is 2.6" diameter (= 11.98 units) × 4.83" tall (= 22.29 units).
+const CAN_RADIUS = 11.98 / 2;
+const CAN_HEIGHT = 22.29;
+const canGroup = new THREE.Group();
+
+// Body: a cylinder with the Diet Coke silver-and-red palette baked into
+// a canvas texture wrapped around it.
+const canBodyCanvas = document.createElement('canvas');
+canBodyCanvas.width = 1024;
+canBodyCanvas.height = 384;
+{
+  const ctx = canBodyCanvas.getContext('2d');
+  // Vertical brushed-aluminum gradient
+  const g = ctx.createLinearGradient(0, 0, 0, 384);
+  g.addColorStop(0,    '#dadada');
+  g.addColorStop(0.5,  '#f0f0f0');
+  g.addColorStop(1,    '#bababa');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 384);
+  // Red label band
+  ctx.fillStyle = '#cc0a14';
+  ctx.fillRect(0, 110, 1024, 180);
+  // White script "Diet Coke"
+  ctx.fillStyle = '#fff';
+  ctx.font = 'italic bold 90px "Brush Script MT", "Lucida Handwriting", cursive';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Draw label twice around the can so wrap looks continuous.
+  ctx.fillText('Diet Coke', 256, 200);
+  ctx.fillText('Diet Coke', 768, 200);
+  // A subtle silver underline detail
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 295, 1024, 3);
+  ctx.fillRect(0, 105, 1024, 3);
+  // "12 FL OZ (355 mL)" small text near bottom
+  ctx.fillStyle = '#bababa';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText('12 FL OZ (355 mL)', 512, 340);
+}
+const canBodyTexture = new THREE.CanvasTexture(canBodyCanvas);
+canBodyTexture.colorSpace = THREE.SRGBColorSpace;
+canBodyTexture.anisotropy = 8;
+
+const canBodyGeom = new THREE.CylinderGeometry(CAN_RADIUS, CAN_RADIUS, CAN_HEIGHT, 48, 1, true);
+const canBodyMat = new THREE.MeshLambertMaterial({ map: canBodyTexture, side: THREE.DoubleSide });
+const canBody = new THREE.Mesh(canBodyGeom, canBodyMat);
+canGroup.add(canBody);
+
+// Top lid: a slightly recessed disk + a thin ring around it for the rim.
+const canTopMat = new THREE.MeshLambertMaterial({ color: 0xbababa });
+const canTopGeom = new THREE.CircleGeometry(CAN_RADIUS * 0.93, 48);
+const canTop = new THREE.Mesh(canTopGeom, canTopMat);
+canTop.rotation.x = -Math.PI / 2;
+canTop.position.y = CAN_HEIGHT / 2 - 0.3;
+canGroup.add(canTop);
+// Rim ring (very thin tube-ish strip)
+const canRimGeom = new THREE.RingGeometry(CAN_RADIUS * 0.93, CAN_RADIUS, 48);
+const canRimMat = new THREE.MeshLambertMaterial({ color: 0xd0d0d0 });
+const canRim = new THREE.Mesh(canRimGeom, canRimMat);
+canRim.rotation.x = -Math.PI / 2;
+canRim.position.y = CAN_HEIGHT / 2;
+canGroup.add(canRim);
+// Pull-tab nub (a tiny rectangle on the top)
+const tabGeom = new THREE.BoxGeometry(2.5, 0.3, 1);
+const tabMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b0 });
+const tab = new THREE.Mesh(tabGeom, tabMat);
+tab.position.set(CAN_RADIUS * 0.35, CAN_HEIGHT / 2 + 0.2, 0);
+canGroup.add(tab);
+
+// Bottom: a darker rim so the can doesn't look hollow from below.
+const canBottomGeom = new THREE.CircleGeometry(CAN_RADIUS * 0.93, 48);
+const canBottomMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+const canBottom = new THREE.Mesh(canBottomGeom, canBottomMat);
+canBottom.rotation.x = Math.PI / 2;
+canBottom.position.y = -CAN_HEIGHT / 2 + 0.3;
+canGroup.add(canBottom);
+
+// Position the can sitting on top of the deck: deck's top face is at
+// y = +CARD_H/2 (= 7.5). The can's bottom is at -CAN_HEIGHT/2, so the
+// can's center should be at y = 7.5 + CAN_HEIGHT/2. Offset slightly
+// toward the back of the deck along Z so it sits on the deck and isn't
+// obscuring the front-card label.
+const CAN_REST_POSITION = new THREE.Vector3(0, CARD_H / 2 + CAN_HEIGHT / 2, 0);
+canGroup.position.copy(CAN_REST_POSITION);
+canGroup.visible = false;   // off by default — toggled via the sidebar can icon
+scene.add(canGroup);
+
+// Kicked-can state: when the user clicks the can, it flies off with a
+// random sideways velocity, falls under gravity, and spins. Once it goes
+// far enough off-screen we hide it and reset. Re-clicking the sidebar can
+// icon brings it back to the rest position.
+let canKicked = false;
+const canVelocity = new THREE.Vector3();
+const canAngularVelocity = new THREE.Vector3();
+const CAN_GRAVITY = 80;     // units / s^2
+
+function kickCan() {
+  canKicked = true;
+  // Sideways direction: pick a random angle in the X/Z plane that
+  // points away from the deck center (mostly outward).
+  const angle = Math.random() * Math.PI * 2;
+  const speed = 60 + Math.random() * 30;
+  canVelocity.set(Math.cos(angle) * speed, 40 + Math.random() * 30, Math.sin(angle) * speed);
+  // Tumbling: random angular velocity on all axes.
+  canAngularVelocity.set(
+    (Math.random() - 0.5) * 12,
+    (Math.random() - 0.5) * 6,
+    (Math.random() - 0.5) * 12,
+  );
+}
+
+function resetCan() {
+  canKicked = false;
+  canVelocity.set(0, 0, 0);
+  canAngularVelocity.set(0, 0, 0);
+  canGroup.position.copy(CAN_REST_POSITION);
+  canGroup.rotation.set(0, 0, 0);
+}
+
+// Stepped per render frame. Returns when the can has flown far enough
+// out of view (we hide it and reset state).
+function updateKickedCan(dt) {
+  if (!canKicked) return;
+  // Integrate
+  canVelocity.y -= CAN_GRAVITY * dt;
+  canGroup.position.addScaledVector(canVelocity, dt);
+  canGroup.rotation.x += canAngularVelocity.x * dt;
+  canGroup.rotation.y += canAngularVelocity.y * dt;
+  canGroup.rotation.z += canAngularVelocity.z * dt;
+  // Once it falls far below the deck OR sideways well past the camera
+  // frustum, hide and reset so the next "toggle can on" puts it back.
+  if (canGroup.position.y < -200 ||
+      Math.abs(canGroup.position.x) > 300 ||
+      Math.abs(canGroup.position.z) > 300) {
+    canGroup.visible = false;
+    // Also reflect state in the toggle button so the user sees it's "off".
+    const btn = document.getElementById('can-toggle');
+    if (btn) btn.classList.remove('active');
+    resetCan();
+  }
+}
+
+// Materials — cards cycle through 4 primary colors by depth index so
+// individual cards in the stack are visually distinguishable. Each card's
+// inner hole/notch walls are tinted a brighter "edge" color via a small
+// onBeforeCompile shader patch that detects horizontal-normal faces.
+// DEBUG: set to true to render wireframe, exposing the actual
+// triangulation. Useful for spotting sliver triangles.
+const DEBUG_WIREFRAME = false;
+
+function makeCardMaterial(baseHex, edgeHex) {
+  // edgeHex is currently unused — earlier we tinted hole/notch walls a
+  // different color via a shader patch, but the patch used view-space
+  // normals and ended up tinting the front face from oblique angles
+  // (making the base color look muddy). Now we just use a plain Lambert
+  // material with a single uniform color.
+  return new THREE.MeshLambertMaterial({
+    color: baseHex,
+    side: THREE.DoubleSide,
+    wireframe: DEBUG_WIREFRAME,
+  });
+}
+const CARD_PALETTE = [
+  makeCardMaterial(0xe05050, 0xff9090), // red       → bright pink edge
+  makeCardMaterial(0xffd860, 0xfff5b0), // yellow    → brighter saturated yellow + pale yellow edge
+  makeCardMaterial(0x4090d0, 0x90d0ff), // blue      → light blue edge
+  makeCardMaterial(0x60c060, 0xb0ffb0), // green     → pale green edge
+];
+// Per-card label background colors — a much paler tint of the card color
+// so the label visually matches the card it sits on while staying readable.
+// Index matches CARD_PALETTE.
+const LABEL_BG_PALETTE = [
+  '#e8b090',  // warm terracotta/orange (far from pink)
+  '#fbf0c8',  // pale yellow
+  '#dceaf6',  // pale blue
+  '#dff0df',  // pale green
+];
+const labelBgFor = (idx) => LABEL_BG_PALETTE[idx % LABEL_BG_PALETTE.length];
+const cardMatFor = (idx) => CARD_PALETTE[idx % CARD_PALETTE.length];
+// Default material reference used by reset/compress code that doesn't
+// know the card's depth index — falls back to red. We override per-card
+// at build/reset time.
+const cardMat = CARD_PALETTE[0];
+const cardMatDropped = new THREE.MeshLambertMaterial({
+  color: 0xffffff, side: THREE.DoubleSide,
+});
+
+// =============================================================
+// Per-card text labels
+// =============================================================
+// Each "interesting" card (front-most of the deck, or any card the user
+// has clicked aside) gets its own label mesh attached to the card. The
+// label is a thin textured plane sitting just in front of the card's
+// front face, inside the punched-hole frame. We allocate label resources
+// lazily — a card with no label costs nothing.
+
+// Canvas aspect matches the label plane aspect.
+const LABEL_CANVAS_W = 1024, LABEL_CANVAS_H = 370;
+const LABEL_INSET = EDGE_INSET + HOLE_R + 0.4;
+const LABEL_W = CARD_W - 2 * LABEL_INSET;
+const LABEL_H = CARD_H - 2 * LABEL_INSET;
+const labelGeomShared = new THREE.PlaneGeometry(LABEL_W, LABEL_H);
+
+// Track the most recent sort so labels can show which notch positions
+// triggered each card's inclusion. Updated by runSort.
+let lastSortCategory = null;
+
+// Allocate or reuse a label mesh on a cardEntry. Returns the mesh.
+function ensureCardLabel(cardEntry) {
+  if (cardEntry.labelMesh) return cardEntry.labelMesh;
+  const canvas = document.createElement('canvas');
+  canvas.width = LABEL_CANVAS_W;
+  canvas.height = LABEL_CANVAS_H;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  // Label canvas is fully opaque. We use polygonOffset so the label always
+  // wins the depth test against the card face it sits on, even at distance
+  // where depth-buffer precision degrades and we'd otherwise see Z-fighting
+  // (card geometry striations bleeding through the label).
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.DoubleSide,
+    fog: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const mesh = new THREE.Mesh(labelGeomShared, material);
+  // Attach to the card mesh so it inherits any transform.
+  cardEntry.mesh.add(mesh);
+  mesh.position.set(0, 0, CARD_T / 2 + 0.01);
+  mesh.rotation.set(0, 0, 0);
+  cardEntry.labelMesh = mesh;
+  cardEntry.labelCanvas = canvas;
+  cardEntry.labelCtx = ctx;
+  cardEntry.labelTexture = texture;
+  cardEntry.labelMaterial = material;
+  return mesh;
+}
+
+function removeCardLabel(cardEntry) {
+  if (!cardEntry.labelMesh) return;
+  cardEntry.mesh.remove(cardEntry.labelMesh);
+  cardEntry.labelTexture.dispose();
+  cardEntry.labelMaterial.dispose();
+  cardEntry.labelMesh = null;
+  cardEntry.labelCanvas = null;
+  cardEntry.labelCtx = null;
+  cardEntry.labelTexture = null;
+  cardEntry.labelMaterial = null;
+}
+
+function drawLabelOnCanvas(ctx, stem, depthIdx) {
+  const c = (cardsFull || {})[stem];
+  // Background tinted to a pale version of the card's color, so the label
+  // matches its host card visually.
+  ctx.fillStyle = depthIdx != null ? labelBgFor(depthIdx) : '#f6efd6';
+  ctx.fillRect(0, 0, LABEL_CANVAS_W, LABEL_CANVAS_H);
+
+  if (!c) {
+    ctx.fillStyle = '#5a4f2c';
+    ctx.font = '24px sans-serif';
+    ctx.fillText('(no data for ' + stem + ')', 30, 50);
+    return;
+  }
+  // Packed format: short keys (n, j, a, s, b).
+  const name = c.n || stem;
+  const addr = (c.a || '').split(';')[0].trim();
+  const job = c.j || '';
+  const fields = (c.s || []).join(', ');
+  const backNames = c.b || [];
+
+  // Two-column layout: left column = front-of-card data (name, job,
+  // address, skills). Right column = back-of-card data (contacts).
+  const M = 30;
+  const COL_GAP = 24;
+  const LEFT_W = Math.floor(LABEL_CANVAS_W * 0.62) - M - COL_GAP / 2;
+  const RIGHT_X = M + LEFT_W + COL_GAP;
+  const RIGHT_W = LABEL_CANVAS_W - RIGHT_X - M;
+
+  // --- LEFT COLUMN ---
+  ctx.fillStyle = '#2a1a08';
+  ctx.font = 'bold 46px Georgia, serif';
+  ctx.fillText(truncate(ctx, name, LEFT_W), M, 60);
+
+  ctx.fillStyle = '#5a4030';
+  ctx.font = 'italic 24px Georgia, serif';
+  ctx.fillText(truncate(ctx, job, LEFT_W), M, 100);
+
+  ctx.fillStyle = '#3a3024';
+  ctx.font = '20px sans-serif';
+  wrapText(ctx, addr, M, 140, LEFT_W, 26, 2);
+
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillText('Skills:', M, 215);
+  ctx.fillStyle = '#3a3024';
+  // Skills MUST show every entry — pick a font size that makes the full
+  // wrapped list fit in the available band between the header and the
+  // "Pulled by" footer line. Cards range from ~3 to ~30 skills, so font
+  // size will vary from 20px down to ~9px.
+  const skillsTop = 240;
+  const skillsBottom = LABEL_CANVAS_H - 28;   // leave room for the footer line
+  drawAutoFitText(ctx, fields, M, skillsTop, LEFT_W, skillsBottom - skillsTop, {
+    minPx: 9, maxPx: 20,
+  });
+
+  // --- RIGHT COLUMN: back-of-card contacts ---
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillText('Contacts (back):', RIGHT_X, 60);
+  if (backNames.length === 0) {
+    ctx.fillStyle = '#888';
+    ctx.font = 'italic 18px sans-serif';
+    ctx.fillText('(none on file)', RIGHT_X, 90);
+  } else {
+    ctx.fillStyle = '#3a3024';
+    ctx.font = '18px sans-serif';
+    const maxNames = 10;
+    let y = 90;
+    for (let i = 0; i < Math.min(backNames.length, maxNames); i++) {
+      ctx.fillText('• ' + truncate(ctx, backNames[i], RIGHT_W - 14), RIGHT_X, y);
+      y += 24;
+    }
+    if (backNames.length > maxNames) {
+      ctx.fillStyle = '#888';
+      ctx.font = 'italic 16px sans-serif';
+      ctx.fillText(`(+${backNames.length - maxNames} more)`, RIGHT_X, y);
+    }
+  }
+
+  // --- BOTTOM: why-pulled line (full width) ---
+  if (lastSortCategory) {
+    // Read notch arrays from cardsFull's packed-format short keys.
+    const EDGE_KEY = { top: 't', bottom: 'B', left: 'L', right: 'R' };
+    const raw = c[EDGE_KEY[lastSortCategory.edge]] || [];
+    const edgeNotches = new Set(raw);
+    const matchedPositions = lastSortCategory.positions.filter(p => edgeNotches.has(p));
+    if (matchedPositions.length === lastSortCategory.positions.length) {
+      const catName = lastSortCategory.label.split(' · ')[1];
+      ctx.fillStyle = '#7a1010';
+      ctx.font = 'italic 18px sans-serif';
+      const line = `Pulled by ${lastSortCategory.edge} [${matchedPositions.join(',')}] → ${catName}`;
+      ctx.fillText(truncate(ctx, line, LABEL_CANVAS_W - 2 * M), M, LABEL_CANVAS_H - 16);
+    }
+  }
+}
+
+function refreshCardLabel(cardEntry) {
+  if (!cardEntry.labelMesh) return;
+  drawLabelOnCanvas(cardEntry.labelCtx, cardEntry.stem, cardEntry.depthIdx);
+  cardEntry.labelTexture.needsUpdate = true;
+}
+
+function truncate(ctx, text, maxPx) {
+  if (ctx.measureText(text).width <= maxPx) return text;
+  let s = text;
+  while (s.length > 4 && ctx.measureText(s + '…').width > maxPx) s = s.slice(0, -1);
+  return s + '…';
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  const words = text.split(/\s+/);
+  let line = '';
+  let lines = 0;
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y + lines * lineHeight);
+      line = w;
+      lines++;
+      if (lines >= maxLines - 1) {
+        // Last allowed line — truncate the rest into it.
+        const rest = words.slice(words.indexOf(w)).join(' ');
+        ctx.fillText(truncate(ctx, rest, maxWidth), x, y + lines * lineHeight);
+        return;
+      }
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, y + lines * lineHeight);
+}
+
+// Greedy word-wrap that returns the array of lines without drawing anything.
+function layoutWrap(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const out = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      out.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+// Render `text` at the largest font size in [minPx, maxPx] at which every
+// wrapped line fits within `maxWidth` AND the total line stack fits within
+// `maxHeight`. Returns the chosen font size. Used for skills — we MUST show
+// every entry, but the text length varies wildly across cards.
+function drawAutoFitText(ctx, text, x, y, maxWidth, maxHeight, opts = {}) {
+  const minPx = opts.minPx || 9;
+  const maxPx = opts.maxPx || 20;
+  const fontFamily = opts.fontFamily || 'sans-serif';
+  const fontWeight = opts.fontWeight || '';
+  const lineHeightFactor = opts.lineHeightFactor || 1.15;
+  // Binary search would be slightly faster, but linear from maxPx → minPx
+  // is simple and the range is small.
+  let chosen = minPx;
+  for (let px = maxPx; px >= minPx; px--) {
+    ctx.font = `${fontWeight} ${px}px ${fontFamily}`.trim();
+    const lh = Math.ceil(px * lineHeightFactor);
+    const lines = layoutWrap(ctx, text, maxWidth);
+    if (lines.length * lh <= maxHeight) {
+      chosen = px;
+      // Draw at this size.
+      ctx.font = `${fontWeight} ${px}px ${fontFamily}`.trim();
+      for (let i = 0; i < lines.length; i++) {
+        ctx.fillText(lines[i], x, y + i * lh);
+      }
+      return chosen;
+    }
+  }
+  // Even at minPx it doesn't fit. Render anyway (overflows the box, but
+  // visible) so the user sees what they're missing instead of silent loss.
+  ctx.font = `${fontWeight} ${minPx}px ${fontFamily}`.trim();
+  const lh = Math.ceil(minPx * lineHeightFactor);
+  const lines = layoutWrap(ctx, text, maxWidth);
+  for (let i = 0; i < lines.length; i++) {
+    ctx.fillText(lines[i], x, y + i * lh);
+  }
+  return minPx;
+}
+
+// The current "front-of-deck" card entry. Tracked separately so we can
+// clean up its label when the front shifts to a different card. Set-aside
+// cards keep their labels permanently (they're not the front any more,
+// but the user wants to keep seeing them).
+let currentFrontCardEntry = null;
+
+function updateFrontCardLabel() {
+  // Remove the label from the previous front card (if it wasn't set aside).
+  if (currentFrontCardEntry && !currentFrontCardEntry.setAside) {
+    removeCardLabel(currentFrontCardEntry);
+  }
+  currentFrontCardEntry = null;
+
+  if (!workingSet || workingSet.length === 0) return;
+  // Front-most card = largest Z in local-deckGroup coords. (All workingSet
+  // cards are currently in deckGroup with the same parent transform.)
+  let frontCard = workingSet[0];
+  for (const c of workingSet) {
+    if (c.mesh.position.z > frontCard.mesh.position.z) frontCard = c;
+  }
+  ensureCardLabel(frontCard);
+  refreshCardLabel(frontCard);
+  currentFrontCardEntry = frontCard;
+}
+
+// =============================================================
+// Load data
+// =============================================================
+// Demo data is shipped as a single compact file (~225 KB, ~63 KB gzipped)
+// produced by `scripts/pack_demo_data.py`. It contains both the per-card
+// notch arrays AND the front/back fields the labels render — only the
+// fields the demo actually uses. Saves a ~24 MB round trip vs. the raw
+// cards.json.
+//
+// The packed format uses short keys per card to shave bytes:
+//   n: full name        a: address       j: job title
+//   s: skills array     b: back-of-card contact names
+//   t: top notches      B: bottom notches
+//   L: left notches     R: right notches
+// We expose two adapter objects so the rest of the demo code can use
+// `cards[stem].top/bottom/left/right` and `cardsFull[stem].workflow.front_data...`
+// unchanged.
+let cards, decoding, cardStems, totalCards;
+let rightPosLettersData;   // {pos: {n, top: [[letter, count], ...]}}
+let bottomPosStatesData;   // {pos: {n, top: [[state, count], ...]}}
+let cardsFull;
+async function loadData() {
+  let packed;
+  try {
+    packed = await fetch('cards_demo.json').then(r => r.json());
+  } catch (e) {
+    loadingDiv.textContent = 'Failed to load demo data: ' + e.message;
+    throw e;
+  }
+  decoding = packed.decoding;
+  rightPosLettersData = packed.right_pos_letters || {};
+  bottomPosStatesData = packed.bottom_pos_states || {};
+  // Use the packed format directly — no adapter objects. Saves the
+  // bookkeeping memory of 717 deeply nested wrapper structures. The few
+  // label-drawing and sort code paths just read the short keys directly.
+  cards = {};
+  cardsFull = packed.cards;  // {stem: {n,j,a,s,b,t,B,L,R}}
+  for (const [stem, c] of Object.entries(packed.cards)) {
+    cards[stem] = {
+      top:    c.t || [],
+      bottom: c.B || [],
+      left:   c.L || [],
+      right:  c.R || [],
+    };
+  }
+  cardStems = Object.keys(cards);
+  totalCards = cardStems.length;
+}
+
+// =============================================================
+// Build categories
+// =============================================================
+// Full master list of all categories (built once at load).
+let allCategories;
+
+// Currently-displayed (filtered) list, sorted alphabetically by label.
+let categories;
+
+function buildAllCategories() {
+  allCategories = [];
+  // Top edge: technical fields, each a 2-needle pair. Fields that share the
+  // SAME pair are indistinguishable by notches (e.g. acoustics & sound
+  // generation), so combine them into one entry ("acoustics / sound
+  // generation") rather than listing each separately.
+  const topByPair = new Map();  // pair-signature -> { positions, names[], n }
+  for (const [name, info] of Object.entries(decoding.top_field_codes || {})) {
+    const positions = info.pair.slice();
+    const sig = positions.slice().sort((a, b) => a - b).join(',');
+    let g = topByPair.get(sig);
+    if (!g) { g = { positions, names: [], n: 0 }; topByPair.set(sig, g); }
+    g.names.push(name);
+    g.n += (info.n || 0);
+  }
+  for (const g of topByPair.values()) {
+    const combined = g.names.slice().sort((a, b) => a.localeCompare(b)).join(' / ');
+    allCategories.push({
+      label: `top · ${combined}`,
+      group: 'Top — technical fields (2 needles)',
+      edge: 'top',
+      positions: g.positions,
+      decodedN: g.n,
+    });
+  }
+  // Bottom edge: state codes are also multi-position-per-state and noisy.
+  // A single needle pulls a mix of states, not just the "primary" one.
+  // Label each position with the empirical top 3 states + counts (computed
+  // from the dataset at pack time).
+  for (const [pos, info] of Object.entries(bottomPosStatesData)) {
+    const top = info.top || [];
+    if (top.length === 0) continue;
+    const topShort = top.slice(0, 3)
+      .map(([s, c]) => `${s}(${c})`).join(', ');
+    allCategories.push({
+      label: `bottom · pos ${pos} — top: ${topShort}`,
+      group: 'Bottom — state (noisy, see counts)',
+      edge: 'bottom',
+      positions: [Number(pos)],
+      decodedN: info.n || 0,
+    });
+  }
+  // Right edge: the McBee right-edge alpha code is multi-position per
+  // letter AND very noisy. A single needle at one position pulls a mix
+  // of many surnames. The packed data includes the EMPIRICAL letter
+  // distribution per right-edge position (`right_pos_letters`) — what
+  // actually falls when you pull that needle, computed from the dataset.
+  // We label each position with its top 3 letters (with their counts)
+  // so the user sees the honest truth: "pos 13 — B(41), G(32), F(30)".
+  const rightPosLetters = rightPosLettersData || {};
+  for (const [pos, info] of Object.entries(rightPosLetters)) {
+    const top = info.top || [];
+    if (top.length === 0) continue;
+    const topShort = top.slice(0, 3)
+      .map(([L, c]) => `${L}(${c})`).join(', ');
+    allCategories.push({
+      label: `right · pos ${pos} — top: ${topShort}`,
+      group: 'Right — surname first letter (noisy, see counts)',
+      edge: 'right',
+      positions: [Number(pos)],
+      decodedN: info.n || 0,
+    });
+  }
+  // Left edge: meaning unknown, so it contributes no sort categories. (We
+  // dropped the earlier "number of names on the back" idea — a count that
+  // grows over time can't be encoded by a fixed set of punched holes.)
+  allCategories.sort((a, b) => a.label.localeCompare(b.label));
+}
+
+// Count how many cards in `set` are notched at all `category.positions` on
+// `category.edge`. Used to filter categories to only the ones that would
+// actually pull something from the current working deck.
+function categoryHitCount(category, set) {
+  let count = 0;
+  for (const c of set) {
+    const notches = category.edge === 'top' ? c.notches.top
+                  : category.edge === 'bottom' ? c.notches.bottom
+                  : category.edge === 'left' ? c.notches.left
+                  : c.notches.right;
+    let ok = true;
+    for (const p of category.positions) {
+      if (!notches.has(p)) { ok = false; break; }
+    }
+    if (ok) count++;
+  }
+  return count;
+}
+
+// Populate the dropdown with categories that have ≥1 hit in `set` AND
+// don't match every card (excluding no-op categories that wouldn't change
+// anything). Prepends each label with its hit count so the user can see how
+// many cards will fall.
+function refreshCategoryDropdown(set) {
+  categories = [];
+  for (const cat of allCategories) {
+    const hits = categoryHitCount(cat, set);
+    if (hits === 0) continue;            // nothing would drop — useless
+    if (hits === set.length) continue;   // everything would drop — also useless
+    categories.push({ ...cat, hits });
+  }
+  sel.innerHTML = '';
+  if (categories.length === 0) {
+    const opt = document.createElement('option');
+    opt.textContent = '(no further sorts possible)';
+    opt.disabled = true;
+    sel.appendChild(opt);
+    sortBtn.disabled = true;
+    return;
+  }
+  const groups = {};
+  for (const c of categories) {
+    if (!groups[c.group]) {
+      const og = document.createElement('optgroup');
+      og.label = c.group;
+      sel.appendChild(og);
+      groups[c.group] = og;
+    }
+    const opt = document.createElement('option');
+    opt.value = c.label;
+    opt.textContent = `${c.label.split(' · ')[1]}  (${c.hits})`;
+    groups[c.group].appendChild(opt);
+  }
+  sortBtn.disabled = false;
+}
+
+// =============================================================
+// Build card meshes (one per card)
+// =============================================================
+// Card state: index 0 = front (smallest z), last = back (largest z).
+// Each card sits on the z axis at z = depthIdx * CARD_PITCH.
+// World origin Y = vertical center of deck; X = horizontal center;
+// Z = depth into deck.
+let cardMeshes = [];     // array of { mesh, stem, depthIdx, notches }
+let deckGroup;           // group containing all undropped cards (lifts together)
+let droppedGroup;        // group containing cards that have fallen (stay on table)
+let asideGroup;          // group containing cards the user has clicked aside
+let asideCount = 0;      // number of cards currently set aside (for stacking)
+
+async function buildCardMeshes() {
+  deckGroup = new THREE.Group();
+  droppedGroup = new THREE.Group();
+  asideGroup = new THREE.Group();
+  scene.add(deckGroup);
+  scene.add(droppedGroup);
+  scene.add(asideGroup);
+
+  cardMeshes = [];
+  workingSet = [];
+  removedSet = [];
+  // Center deck on origin in Z
+  const totalDepth = totalCards * CARD_PITCH;
+  const z0 = -totalDepth / 2;
+
+  for (let i = 0; i < cardStems.length; i++) {
+    const stem = cardStems[i];
+    const data = cards[stem];
+    const notches = {
+      top: new Set(data.top || []),
+      bottom: new Set(data.bottom || []),
+      left: new Set(data.left || []),
+      right: new Set(data.right || []),
+    };
+    const geom = getCardGeometry(notches);
+    const mesh = new THREE.Mesh(geom, cardMatFor(i));
+    mesh.position.set(0, 0, z0 + i * CARD_PITCH + CARD_PITCH / 2);
+    mesh.userData.stem = stem;
+    mesh.userData.depthIdx = i;
+    mesh.userData.notches = data;  // the raw {top, bottom, left, right} arrays
+    // Each card mesh is CARD_T thick (extruded along +Z by depth=CARD_T,
+    // offset by -CARD_T/2 so it's centered on its own origin). Cards are
+    // placed CARD_PITCH apart along Z so there's a small air gap between
+    // them — that prevents adjacent cards' faces from sharing a Z plane
+    // (which would cause hole-face Z-fighting).
+    deckGroup.add(mesh);
+    const entry = {
+      mesh,
+      stem,
+      depthIdx: i,
+      notches,
+      dropped: false,
+    };
+    cardMeshes.push(entry);
+    workingSet.push(entry);
+
+    // Yield to the event loop periodically to keep the page responsive and
+    // update the loading bar.
+    if (i % 25 === 0) {
+      loadingBar.style.width = (100 * i / cardStems.length) + '%';
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  loadingBar.style.width = '100%';
+
+  // Free post-build resources we no longer need:
+  //   - geomCache: only ~5 of 713 entries are ever reused, and after
+  //     buildCardMeshes finishes nothing else calls getCardGeometry.
+  //   - cards: redundant copy of notch arrays (the Sets we keep on each
+  //     entry are what sort logic uses).
+  // Each card kept ~17 KB in those structures — clearing them frees a
+  // few MB and lets V8 reclaim the working memory used during build.
+  geomCache.clear();
+  cards = null;
+}
+
+// =============================================================
+// Sort logic
+// =============================================================
+let currentCategory;
+let animating = false;
+let speedMult = 2.5;
+// The "working set" is the subset of cards currently being sorted. After
+// each round it shrinks to whatever stayed on the table (the matches), so
+// the user can sort the sorted cards. Reset returns it to all 717.
+let workingSet = [];     // array of cardMesh entries
+let removedSet = [];     // cards lifted away in previous rounds (hidden)
+let roundNum = 1;
+
+function shouldDrop(cardEntry, category) {
+  const set = category.edge === 'top' ? cardEntry.notches.top
+            : category.edge === 'bottom' ? cardEntry.notches.bottom
+            : category.edge === 'left' ? cardEntry.notches.left
+            : cardEntry.notches.right;
+  for (const p of category.positions) {
+    if (!set.has(p)) return false;
+  }
+  return true;
+}
+
+// =============================================================
+// Needle
+// =============================================================
+let needleMeshes = []; // one needle per slot position in current category
+
+function clearNeedles() {
+  for (const n of needleMeshes) scene.remove(n);
+  needleMeshes = [];
+}
+
+function buildNeedles(category) {
+  clearNeedles();
+  const totalDepth = totalCards * CARD_PITCH;
+  const needleLen = totalDepth + 50;  // extends past both sides
+  const radius = HOLE_R * 0.7;        // a bit smaller than the holes
+  for (const pos of category.positions) {
+    const { x, y } = slotXY(category.edge, pos);
+    // Needle: a cylinder lying along Z axis, plus a thicker handle stub
+    const shaftGeom = new THREE.CylinderGeometry(radius, radius, needleLen, 12);
+    // Rotate cylinder so its axis runs along Z (default is Y axis)
+    shaftGeom.rotateX(Math.PI / 2);
+    const shaftMat = new THREE.MeshLambertMaterial({ color: 0xb8b8b8 });
+    const shaft = new THREE.Mesh(shaftGeom, shaftMat);
+    shaft.position.set(x, y, 0); // centered on origin; will animate position.z
+    // Wooden handle: a small cylinder behind the front face
+    const handleLen = 5;
+    const handleR = 1.0;
+    const handleGeom = new THREE.CylinderGeometry(handleR, handleR, handleLen, 12);
+    handleGeom.rotateX(Math.PI / 2);
+    const handleMat = new THREE.MeshLambertMaterial({ color: 0x7a4a1c });
+    const handle = new THREE.Mesh(handleGeom, handleMat);
+    // Handle sits at the front end of the shaft (smaller z, in front of deck)
+    handle.position.set(x, y, -needleLen / 2 + 1);
+    const group = new THREE.Group();
+    group.add(shaft);
+    group.add(handle);
+    // Start position: needle far in front of deck (negative z, big offset)
+    // We'll animate group.position.z from a far-front start to 0 (inserted).
+    group.userData = { x, y, needleLen, baseZ: 0 };
+    // Hidden until animation begins
+    group.visible = false;
+    scene.add(group);
+    needleMeshes.push(group);
+  }
+}
+
+function placeNeedles(insertT /* 0..1 */, liftDist) {
+  const totalDepth = totalCards * CARD_PITCH;
+  // At insertT=0, needle is fully in front of deck (z = -totalDepth/2 - needleLen/2)
+  // At insertT=1, needle is centered on deck (z = 0)
+  for (const group of needleMeshes) {
+    const needleLen = group.userData.needleLen;
+    const startZ = -totalDepth / 2 - needleLen / 2 - 4;
+    const endZ = 0;
+    group.position.z = startZ + (endZ - startZ) * insertT;
+    // Needle follows the deck in whichever direction the deck is being
+    // pulled (top → up, bottom → down, left/right → sideways).
+    group.position.x = liftDir.x * liftDist;
+    group.position.y = liftDir.y * liftDist;
+    group.visible = insertT > 0.001;
+  }
+}
+
+// =============================================================
+// Animation loop
+// =============================================================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+let liftY = 0;            // legacy scalar — current lift distance along liftDir
+let liftDir = { x: 0, y: 1 };  // unit vector: the direction the deck moves
+                               // when the needle lifts. +y for top sorts,
+                               // -y for bottom, -x for left, +x for right.
+
+function liftDirFor(edge) {
+  if (edge === 'top') return { x: 0, y: 1 };
+  if (edge === 'bottom') return { x: 0, y: -1 };
+  if (edge === 'left') return { x: -1, y: 0 };
+  return { x: 1, y: 0 };  // right
+}
+let needleInsertT = 0;    // 0..1
+
+async function runSort() {
+  if (animating) return;
+  animating = true;
+  sortBtn.disabled = true;
+  resetBtn.disabled = true;
+
+  // If the soda can is sitting on top of the deck, kick it off — the
+  // needle insertion would knock it flying.
+  if (canGroup.visible && !canKicked) kickCan();
+
+  // Record this round's sort so the front-card label can show why each
+  // remaining card was pulled in.
+  lastSortCategory = currentCategory;
+
+  // Hide the front-card label during the sort — its host card may end up
+  // lifted away or repositioned. We'll re-attach it to the new front-most
+  // card after Phase 3. (Set-aside cards keep their labels.)
+  if (currentFrontCardEntry && !currentFrontCardEntry.setAside) {
+    removeCardLabel(currentFrontCardEntry);
+  }
+  currentFrontCardEntry = null;
+
+  // Build needles for the current category
+  buildNeedles(currentCategory);
+
+  // -- Phase 1: needle slides in --
+  const insertDur = 900 / speedMult;
+  const t0 = performance.now();
+  while (true) {
+    const dt = (performance.now() - t0) / insertDur;
+    needleInsertT = Math.min(1, dt);
+    placeNeedles(needleInsertT, liftY);
+    if (needleInsertT >= 1) break;
+    await sleep(16);
+  }
+
+  // -- Phase 2: slow-motion lift. As the deck rises, cards whose hole at
+  //    the needle slot is notched (cut to edge) slip off and stay on the
+  //    table. Non-notched cards rise with the deck.
+  //
+  // We model this directly: identify droppers, then animate.
+  //   - liftY animates from 0 → liftFinal over liftDur.
+  //   - Each "dropper" card detaches from deckGroup at the moment liftY
+  //     exceeds a small threshold (since its notch lets it slip immediately).
+  //     But for slow-motion clarity, we drop them ONE BY ONE in order of
+  //     depth — front-most first — over the course of the lift.
+  const droppers = [];
+  const lifters = [];  // working-set cards that will lift away with the needle
+  for (const c of workingSet) {
+    if (shouldDrop(c, currentCategory)) droppers.push(c);
+    else lifters.push(c);
+  }
+
+  // Lift direction depends on which edge the needle is using.
+  liftDir = liftDirFor(currentCategory.edge);
+  // How far the deck moves before being fully separated. For up/down sorts
+  // we want enough vertical clearance to see the lifted deck above/below
+  // the table; for sideways sorts the same magnitude works.
+  const liftFinal = CARD_H + 8;
+  const liftDur = Math.max(1200, droppers.length * 6) / speedMult;
+  // Cap so it doesn't go absurd
+  const cappedLiftDur = Math.min(liftDur, 6000 / speedMult);
+
+  let droppedSoFar = 0;
+  const fallStart = performance.now();
+  // "Gravity" for dropped cards: they accelerate back toward the origin
+  // along the lift axis. Same magnitude regardless of axis (so left/right
+  // sorts feel as snappy as up/down ones).
+  const GRAVITY = 0.00002;   // world-units per ms^2 of acceleration along -liftDir
+  const activeFallers = []; // cards currently mid-fall back toward origin
+  while (true) {
+    const elapsed = performance.now() - fallStart;
+    const t = Math.min(1, elapsed / cappedLiftDur);
+    const eased = easeInOutCubic(t);
+    liftY = liftFinal * eased;
+    deckGroup.position.x = liftDir.x * liftY;
+    deckGroup.position.y = liftDir.y * liftY;
+    placeNeedles(1, liftY);
+
+    // Detach the next dropper(s) as the lift progresses. Each card starts
+    // its fall from wherever the deck currently is in world space — i.e.
+    // the deck moved away and let it go, so its initial offset along the
+    // lift axis is the current lift distance.
+    const targetDropped = Math.floor(droppers.length * t);
+    while (droppedSoFar < targetDropped) {
+      detachDropper(droppers[droppedSoFar], liftY, activeFallers);
+      droppedSoFar++;
+    }
+
+    // Integrate falling cards: distance along lift axis decreases toward 0,
+    // accelerated by GRAVITY. When the card reaches 0 along that axis,
+    // it's back to its original deck position (on the table).
+    const dtMs = 16;
+    for (const f of activeFallers) {
+      if (f.done) continue;
+      f.v += GRAVITY * dtMs;
+      f.d -= f.v * dtMs;
+      if (f.d <= 0) {
+        f.d = 0;
+        f.done = true;
+      }
+      f.mesh.position.x = liftDir.x * f.d;
+      f.mesh.position.y = liftDir.y * f.d;
+    }
+
+    if (t >= 1) break;
+    await sleep(16);
+  }
+  // Drop any remaining (rounding leftover)
+  while (droppedSoFar < droppers.length) {
+    detachDropper(droppers[droppedSoFar], liftY, activeFallers);
+    droppedSoFar++;
+  }
+  // Finish remaining falls so every dropped card actually reaches the table
+  // before the animation ends.
+  while (activeFallers.some(f => !f.done)) {
+    const dtMs = 16;
+    for (const f of activeFallers) {
+      if (f.done) continue;
+      f.v += GRAVITY * dtMs;
+      f.d -= f.v * dtMs;
+      if (f.d <= 0) { f.d = 0; f.done = true; }
+      f.mesh.position.x = liftDir.x * f.d;
+      f.mesh.position.y = liftDir.y * f.d;
+    }
+    await sleep(16);
+  }
+
+  // -- Phase 3: clear the stage for the next sort.
+  //    a) Fade out + remove the lifted cards (the non-matches that went up
+  //       with the needle).
+  //    b) Animate the fallen cards compressing into a tight stack centered
+  //       at the origin.
+  //    c) Reparent them back into deckGroup as the new working set.
+  //    d) Refresh the dropdown to only show categories that would actually
+  //       pull something from this smaller deck.
+
+  // (a) Fade out lifted cards + needles
+  const fadeDur = 700 / speedMult;
+  const fadeStart = performance.now();
+  // Make sure the materials are unique-per-mesh so we don't affect dropped
+  // cards by mutating the shared material. Cheapest path: clone the shared
+  // material once for the lifters group as a whole by giving deckGroup a
+  // transient opacity proxy. We'll do it per-mesh.
+  const lifterMaterials = lifters.map(c => {
+    const m = c.mesh.material.clone();
+    m.transparent = true;
+    c.mesh.material = m;
+    return m;
+  });
+  const needleMatPairs = [];
+  for (const ng of needleMeshes) {
+    ng.traverse((n) => {
+      if (n.material) {
+        n.material = n.material.clone();
+        n.material.transparent = true;
+        needleMatPairs.push(n.material);
+      }
+    });
+  }
+  while (true) {
+    const elapsed = performance.now() - fadeStart;
+    const ft = Math.min(1, elapsed / fadeDur);
+    const opacity = 1 - ft;
+    for (const m of lifterMaterials) m.opacity = opacity;
+    for (const m of needleMatPairs) m.opacity = opacity;
+    if (ft >= 1) break;
+    await sleep(16);
+  }
+  // Remove lifted cards from the scene entirely; move them to removedSet.
+  for (const c of lifters) {
+    deckGroup.remove(c.mesh);
+    removedSet.push(c);
+  }
+  clearNeedles();
+  // Restore deckGroup to origin since nothing's in it
+  deckGroup.position.set(0, 0, 0);
+  liftY = 0;
+
+  // (b) + (c): compress fallen cards into a new tight stack.
+  // Compute target Z positions for each card in the new deck — they pack
+  // contiguously along Z, centered on origin, keeping their original
+  // front-to-back order (sorted by current Z position).
+  droppers.sort((a, b) => a.mesh.position.z - b.mesh.position.z);
+  const newDepth = droppers.length * CARD_PITCH;
+  const newZ0 = -newDepth / 2;
+  // Capture starting positions for the lerp.
+  const startPositions = droppers.map(c => ({
+    x: c.mesh.position.x,
+    y: c.mesh.position.y,
+    z: c.mesh.position.z,
+  }));
+  const compressDur = Math.max(500, Math.min(1200, droppers.length * 2)) / speedMult;
+  const compressStart = performance.now();
+  while (true) {
+    const elapsed = performance.now() - compressStart;
+    const ct = Math.min(1, elapsed / compressDur);
+    const eased = easeInOutCubic(ct);
+    for (let i = 0; i < droppers.length; i++) {
+      const c = droppers[i];
+      const s = startPositions[i];
+      const targetZ = newZ0 + i * CARD_PITCH + CARD_PITCH / 2;
+      c.mesh.position.x = s.x + (0 - s.x) * eased;
+      c.mesh.position.y = s.y + (0 - s.y) * eased;
+      c.mesh.position.z = s.z + (targetZ - s.z) * eased;
+    }
+    if (ct >= 1) break;
+    await sleep(16);
+  }
+
+  // Reparent dropped cards back into deckGroup with the new depth indexes.
+  for (let i = 0; i < droppers.length; i++) {
+    const c = droppers[i];
+    droppedGroup.remove(c.mesh);
+    deckGroup.add(c.mesh);
+    c.dropped = false;
+    c.depthIdx = i;
+    c.mesh.material = cardMatFor(i);
+    c.mesh.position.set(0, 0, newZ0 + i * CARD_PITCH + CARD_PITCH / 2);
+  }
+
+  // (d) Promote droppers to the new working set; refresh dropdown.
+  const sortedByLabel = currentCategory.label.split(' · ')[1];
+  workingSet = droppers;
+  refreshCategoryDropdown(workingSet);
+  updateFrontCardLabel();
+  // Pick the first available category as the new default
+  if (categories.length > 0) {
+    currentCategory = categories[0];
+    sel.value = currentCategory.label;
+  } else {
+    currentCategory = null;
+  }
+  roundNum += 1;
+
+  // Stats
+  stats.innerHTML =
+    `<div class="big">${workingSet.length}</div>` +
+    `<div>cards remaining on the table</div>` +
+    `<div style="opacity:0.7; margin-top:6px;">Round ${roundNum - 1} pulled ` +
+    `<strong>${sortedByLabel}</strong>: ` +
+    `${droppers.length} matched, ${lifters.length} lifted away.</div>` +
+    (categories.length === 0
+      ? `<div style="opacity:0.85; margin-top:8px;">No further sorts will change this deck. Hit Reset to start over.</div>`
+      : `<div style="opacity:0.85; margin-top:8px;">Pick another category to sort the sorted cards (Round ${roundNum}).</div>`);
+
+  animating = false;
+  sortBtn.disabled = categories.length === 0;
+  resetBtn.disabled = false;
+}
+
+function detachDropper(c, currentLiftDist, activeFallers) {
+  // The card has just "slipped through" the needle. It was being moved by
+  // the deck along liftDir, but its notch let it go — so it's released
+  // into free fall from the deck's current offset. We reparent into
+  // droppedGroup (which doesn't move) and register a faller so the
+  // animation loop accelerates it back toward d=0 along liftDir.
+  c.dropped = true;
+  deckGroup.remove(c.mesh);
+  droppedGroup.add(c.mesh);
+  c.mesh.position.x = liftDir.x * currentLiftDist;
+  c.mesh.position.y = liftDir.y * currentLiftDist;
+  c.mesh.material = cardMatDropped;
+  activeFallers.push({
+    mesh: c.mesh,
+    d: currentLiftDist,  // current distance from origin along liftDir
+    v: 0,                // velocity along -liftDir (toward origin)
+    done: false,
+  });
+}
+
+// Move a clicked card aside — out of the working deck — and pin it to the
+// left of the deck so the user can see its label alongside the deck. The
+// card keeps its label permanently (it's been "set aside" deliberately).
+function setAsideCard(entry) {
+  // Pull from workingSet so it stops counting as a deck card.
+  const idx = workingSet.indexOf(entry);
+  if (idx >= 0) workingSet.splice(idx, 1);
+
+  // Compute its world position so the reparent doesn't visually teleport.
+  entry.mesh.updateMatrixWorld();
+  const wp = new THREE.Vector3();
+  entry.mesh.getWorldPosition(wp);
+
+  // Reparent into asideGroup.
+  if (entry.mesh.parent) entry.mesh.parent.remove(entry.mesh);
+  asideGroup.add(entry.mesh);
+
+  // Target position: stack set-aside cards in columns of 3 (top-to-bottom)
+  // to the LEFT of the deck. Once a column is full, start a new column
+  // further left.
+  const COLS_PER_HEIGHT = 3;
+  const col = Math.floor(asideCount / COLS_PER_HEIGHT);
+  const row = asideCount % COLS_PER_HEIGHT;
+  const colSpacing = CARD_W + 6;
+  const rowSpacing = CARD_H + 4;
+  const targetX = -CARD_W - 4 - col * colSpacing;
+  // Row 0 = top, row 2 = bottom. Center the column vertically around y=0
+  // so a 3-card column spans roughly y ∈ [-(rowSpacing), +(rowSpacing)].
+  const targetY = (COLS_PER_HEIGHT - 1) / 2 * rowSpacing - row * rowSpacing;
+  // Pull aside cards forward in Z so they aren't hidden by the deck and
+  // each one's a hair in front of the previous so they don't Z-fight.
+  const targetZ = (totalCards * CARD_PITCH) / 2 + 4 + asideCount * 0.01;
+  asideCount += 1;
+  entry.setAside = true;
+
+  // Animate from current world position to target over ~500ms.
+  entry.mesh.position.copy(wp);
+  const startPos = wp.clone();
+  const target = new THREE.Vector3(targetX, targetY, targetZ);
+  const dur = 500;
+  const t0 = performance.now();
+  (async () => {
+    while (true) {
+      const t = Math.min(1, (performance.now() - t0) / dur);
+      const eased = easeInOutCubic(t);
+      entry.mesh.position.lerpVectors(startPos, target, eased);
+      if (t >= 1) break;
+      await sleep(16);
+    }
+  })();
+
+  // Give the aside card its own label (kept permanently while aside).
+  ensureCardLabel(entry);
+  refreshCardLabel(entry);
+
+  // The card we just removed might have been the front-of-deck label
+  // host — promote the new front-most card.
+  if (currentFrontCardEntry === entry) {
+    currentFrontCardEntry = null;
+  }
+  updateFrontCardLabel();
+}
+
+function resetDeck(keepCamera) {
+  // Restore all 717 cards into deckGroup at their original z positions.
+  const totalDepth = totalCards * CARD_PITCH;
+  const z0 = -totalDepth / 2;
+  // Re-add any cards that were removed in previous rounds (they were
+  // detached from the scene entirely).
+  for (const c of removedSet) {
+    if (!c.mesh.parent) deckGroup.add(c.mesh);
+  }
+  for (let i = 0; i < cardMeshes.length; i++) {
+    const c = cardMeshes[i];
+    if (c.dropped) {
+      droppedGroup.remove(c.mesh);
+      deckGroup.add(c.mesh);
+      c.dropped = false;
+    }
+    if (c.setAside) {
+      asideGroup.remove(c.mesh);
+      deckGroup.add(c.mesh);
+      c.setAside = false;
+      removeCardLabel(c);
+    }
+    // Restore original front-to-back order (depthIdx i).
+    c.depthIdx = i;
+    c.mesh.position.set(0, 0, z0 + i * CARD_PITCH + CARD_PITCH / 2);
+    c.mesh.material = cardMatFor(i);
+    c.mesh.visible = true;
+  }
+  deckGroup.position.set(0, 0, 0);
+  liftY = 0;
+  needleInsertT = 0;
+  clearNeedles();
+  workingSet = cardMeshes.slice();
+  removedSet = [];
+  asideCount = 0;
+  roundNum = 1;
+  lastSortCategory = null;
+  refreshCategoryDropdown(workingSet);
+  updateFrontCardLabel();
+  if (categories.length > 0) {
+    currentCategory = categories[0];
+    sel.value = currentCategory.label;
+  }
+}
+
+// =============================================================
+// Render loop
+// =============================================================
+function tick() {
+  const dt = frameClock.getDelta();
+  controls.update();
+  updateClouds(dt);
+  updateKickedCan(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+
+// =============================================================
+// Boot
+// =============================================================
+(async function boot() {
+  await loadData();
+  buildAllCategories();
+  await buildCardMeshes();
+  refreshCategoryDropdown(workingSet);
+  updateFrontCardLabel();
+  loadingDiv.style.display = 'none';
+
+  // Default to the "lasers" field — its label may now be a combined
+  // "a / lasers / b" group, so match by word rather than exact label.
+  currentCategory = categories.find(c => c.edge === 'top' && /\blasers\b/.test(c.label))
+                 || categories[0];
+  sel.value = currentCategory.label;
+  stats.innerHTML =
+    `Loaded <strong>${totalCards}</strong> cards.<br>` +
+    `Selected <strong>${currentCategory.label.split(' · ')[1]}</strong>. Click ` +
+    `<em>Insert needle &amp; lift</em> to sort.`;
+  sortBtn.disabled = false;
+
+  sel.addEventListener('change', () => {
+    currentCategory = categories.find(c => c.label === sel.value);
+    if (!currentCategory) return;
+    stats.innerHTML =
+      `Selected <strong>${currentCategory.label.split(' · ')[1]}</strong>` +
+      ` — needle at position${currentCategory.positions.length > 1 ? 's' : ''} ` +
+      `<code>${currentCategory.positions.join(', ')}</code> on the ${currentCategory.edge} edge.` +
+      `<br><span style="opacity:0.7">Round ${roundNum}: ${workingSet.length} cards on the table.` +
+      ` ${currentCategory.hits} would match.</span>`;
+  });
+  sortBtn.addEventListener('click', runSort);
+  resetBtn.addEventListener('click', () => { if (!animating) resetDeck(true); });
+  speedSlider.addEventListener('input', () => {
+    speedMult = parseFloat(speedSlider.value);
+    speedLabel.textContent = speedMult.toFixed(1) + '×';
+  });
+
+  // Toggle the Diet Coke scale-reference can on/off.
+  const canToggleBtn = document.getElementById('can-toggle');
+  canToggleBtn.addEventListener('click', () => {
+    if (canGroup.visible) {
+      canGroup.visible = false;
+    } else {
+      // Bring the can back to its resting position (in case it was kicked).
+      resetCan();
+      canGroup.visible = true;
+    }
+    canToggleBtn.classList.toggle('active', canGroup.visible);
+  });
+
+  onResize();
+  tick();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge-notch card visualizations</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0;
+               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #fafaf6; color: #222; }
+  header { padding: 28px 24px 22px; border-bottom: 1px solid #ddd; background: #fff; }
+  header .wrap { max-width: 980px; margin: 0 auto; }
+  header h1 { margin: 0 0 8px; font-size: 24px; letter-spacing: -0.01em; }
+  header p { margin: 0; font-size: 14px; line-height: 1.6; color: #555; max-width: 70ch; }
+  header p + p { margin-top: 8px; }
+  main { max-width: 980px; margin: 0 auto; padding: 28px 24px 48px; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+  .demo { display: flex; flex-direction: column; text-decoration: none; color: inherit;
+          background: #fff; border: 1px solid #e3e3da; border-radius: 10px;
+          padding: 20px 22px; transition: border-color 120ms ease, box-shadow 120ms ease,
+                                          transform 120ms ease; }
+  .demo:hover { border-color: #d9cf93; box-shadow: 0 4px 18px rgba(0,0,0,0.07);
+                transform: translateY(-2px); }
+  .demo .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+                   color: #b08900; font-weight: 600; margin-bottom: 7px; }
+  .demo h2 { margin: 0 0 8px; font-size: 18px; }
+  .demo p { margin: 0; font-size: 13.5px; line-height: 1.55; color: #555; flex: 1; }
+  .demo .go { margin-top: 14px; font-size: 13px; font-weight: 600; color: #c4262e; }
+  .demo .go::after { content: ' →'; }
+
+  footer { max-width: 980px; margin: 0 auto; padding: 0 24px 40px;
+           font-size: 12px; color: #999; }
+  footer a { color: #888; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Edge-notch card visualizations</h1>
+    <p>Edge-notch cards (McBee Keysort and kin) store data in holes punched around
+       the rim of an index card. To encode a value you notch a hole open to the edge;
+       to retrieve records you slide a needle through a position and lift — the notched
+       cards fall away from the deck.</p>
+    <p>These interactive demos explore a real deck: what each notch position encodes,
+       and how the physical sort actually plays out.</p>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+
+    <a class="demo" href="position_explorer.html">
+      <div class="eyebrow">Decode · by position</div>
+      <h2>Position explorer</h2>
+      <p>Hover any notch position on a blank card to reveal the categories it encodes.
+         Each category's positions light up in a matching color, so you can see which
+         holes pair together.</p>
+      <span class="go">Open</span>
+    </a>
+
+    <a class="demo" href="category_explorer.html">
+      <div class="eyebrow">Decode · by category</div>
+      <h2>Category explorer</h2>
+      <p>The card starts as a clean grid of holes. Hover a category label — a technical
+         field, a state, a surname letter — and watch its slots notch in, showing exactly
+         how that value is recorded.</p>
+      <span class="go">Open</span>
+    </a>
+
+    <a class="demo" href="sort_demo.html">
+      <div class="eyebrow">Sort · 3D animation</div>
+      <h2>Sort demo</h2>
+      <p>A 3D animation of the mechanical sort. Pick a category, insert the needle through
+         its notch position, and lift — the matching cards drop out of the deck, round
+         after round, just like the real tool.</p>
+      <span class="go">Open</span>
+    </a>
+
+    <a class="demo" href="sort_explorer.html">
+      <div class="eyebrow">Sort · interactive</div>
+      <h2>Sort explorer</h2>
+      <p>Filter the full deck by notch position or by category and see which cards fall
+         out. A faster, data-first way to slice the same deck the 3D demo animates.</p>
+      <span class="go">Open</span>
+    </a>
+
+  </div>
+</main>
+
+<footer>
+  Interactive demos of a digitized edge-notch card deck.
+</footer>
+</body>
+</html>

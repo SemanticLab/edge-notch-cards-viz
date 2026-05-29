@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge-notch card — sort explorer</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 14px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         color: #1f2430; background: #eef1f4; overflow: hidden; }
+
+  .app { display: flex; height: 100vh; }
+  .left  { width: 50%; height: 100vh; display: flex; flex-direction: column;
+           border-right: 1px solid #d6dbe2; background: #f6f8fa; }
+  .right { width: 50%; height: 100vh; overflow-y: auto; background: #e9edf1; }
+
+  .panel-top    { height: 33.333%; border-bottom: 1px solid #d6dbe2; position: relative;
+                  display: flex; flex-direction: column; min-height: 0; }
+  .panel-bottom { height: 66.667%; position: relative; display: flex; flex-direction: column;
+                  min-height: 0; }
+
+  .ttl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #8a93a0;
+         padding: 8px 14px 0; flex: 0 0 auto; }
+
+  /* ---- top: deck viz ---- */
+  .deck-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
+               gap: 18px; padding: 6px 18px 12px; min-height: 0; }
+  .deck-svg { height: 100%; max-height: 150px; flex: 0 0 auto; }
+  .deck-stat { display: flex; flex-direction: column; gap: 2px; }
+  .deck-num { font-size: 34px; font-weight: 700; color: #11324f; line-height: 1; }
+  .deck-num small { font-size: 16px; font-weight: 500; color: #8a93a0; }
+  .deck-sub { font-size: 12px; color: #6b7686; }
+
+  /* ---- bottom: controls + card ---- */
+  .bar { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 4px 14px 6px;
+         flex-wrap: wrap; }
+  .modes { display: inline-flex; border: 1px solid #c3ccd6; border-radius: 7px; overflow: hidden; }
+  .modes button { font: inherit; font-size: 12px; border: 0; background: #fff; color: #46506a;
+                  padding: 5px 12px; cursor: pointer; }
+  .modes button.active { background: #11324f; color: #fff; }
+  .clear-btn { font: inherit; font-size: 12px; border: 1px solid #c3ccd6; background: #fff;
+               border-radius: 7px; padding: 5px 10px; cursor: pointer; color: #46506a; }
+  .clear-btn:hover { background: #f0f0f0; }
+  .search { flex: 1 1 auto; font: inherit; font-size: 13px; padding: 6px 10px;
+            border: 1px solid #c3ccd6; border-radius: 7px; background: #fff; color: #2a2f3a;
+            min-width: 0; }
+  .search:focus { outline: none; border-color: #11324f; box-shadow: 0 0 0 2px rgba(17,50,79,0.12); }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+          background: #11324f; color: #fff; border-radius: 20px; padding: 3px 6px 3px 10px; }
+  .chip b { font-weight: 600; }
+  .chip span.x { cursor: pointer; width: 16px; height: 16px; line-height: 15px; text-align: center;
+                 border-radius: 50%; background: rgba(255,255,255,0.2); }
+  .chip span.x:hover { background: rgba(255,255,255,0.4); }
+  .hint-line { font-size: 12px; color: #8a93a0; }
+
+  .card-host { flex: 1 1 auto; position: relative; min-height: 0; }
+
+  /* overlay placed inside the card face by JS (getCardRect) */
+  .card-ov { position: absolute; pointer-events: none; overflow: hidden; }
+
+  /* notch-mode info panel */
+  .ni { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+        max-width: 86%; text-align: center; background: rgba(255,255,255,0.93);
+        border: 1px solid #e6dca8; border-radius: 10px; padding: 10px 14px; pointer-events: none;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08); opacity: 0; transition: opacity 110ms; }
+  .ni.show { opacity: 1; }
+  .ni-hint { color: #9aa3af; }
+  .ni-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #9aa3af;
+             margin-bottom: 6px; }
+  .ni-item { margin: 5px 0; }
+  .ni-kind { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .ni-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px;
+            vertical-align: middle; }
+  .ni-name { font-size: 15px; font-weight: 600; color: #1f2430; }
+  .ni-pos { font-size: 11px; color: #8a93a0; }
+
+  /* category-mode list (lives inside the card face) */
+  .catbox { position: absolute; inset: 0; pointer-events: auto; overflow-y: auto;
+            overflow-x: hidden; padding: 4px 10px; }
+  .cat-group { margin-bottom: 8px; }
+  .cat-h { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #93704a;
+           font-weight: 700; margin: 2px 0; }
+  /* Categories flow left-to-right then wrap to the next row, so the list
+     scrolls VERTICALLY (not horizontally) while still using the card's width. */
+  .cat-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+               gap: 0 14px; }
+  .cat { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; cursor: pointer;
+         padding: 1px 4px; border-radius: 4px; }
+  .cat:hover { background: #fff6d8; }
+  .cat .c-n { color: #2a2f3a; }
+  .cat .c-ct { color: #9aa3af; font-variant-numeric: tabular-nums; }
+  .cat.sel { background: #11324f; }
+  .cat.sel .c-n, .cat.sel .c-ct { color: #fff; }
+  .cat.disabled { opacity: 0.3; cursor: default; }
+  .cat.disabled:hover { background: transparent; }
+
+  /* ---- right: image column ---- */
+  .cards-col { display: flex; flex-direction: column; align-items: center; gap: 14px;
+               padding: 16px 14px 60px; }
+  .rc { width: 100%; cursor: pointer; }
+  .rc-frame { width: 100%; aspect-ratio: 2.2 / 1; border-radius: 8px; background: #dfe4ea;
+              display: flex; align-items: center; justify-content: center; overflow: hidden;
+              transition: transform 120ms; }
+  .rc:hover .rc-frame { transform: translateY(-2px); }
+  .rc-frame img { width: 100%; height: 100%; object-fit: contain; display: block;
+                  background: #e9edf1; }
+  .rc-cap { display: flex; justify-content: space-between; gap: 8px; padding: 4px 4px 0;
+            font-size: 12px; color: #46506a; }
+  .rc-side { color: #9aa3af; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+  .rc-ph { color: #9aa3af; font-size: 12px; }
+  .empty { padding: 48px 24px; text-align: center; color: #8a93a0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="left">
+    <div class="panel-top">
+      <div class="ttl">The deck</div>
+      <div class="deck-wrap">
+        <svg class="deck-svg" id="deckSvg" viewBox="0 0 260 160" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="deck-stat">
+          <div class="deck-num"><span id="deckSel">717</span><small> / <span id="deckTot">717</span> cards</small></div>
+          <div class="deck-sub" id="deckSub">No sort applied — the whole deck.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-bottom">
+      <div class="bar">
+        <div class="modes">
+          <button id="mNotch" class="active">Notch mode</button>
+          <button id="mCat">Category mode</button>
+        </div>
+        <button class="clear-btn" id="clearBtn">Clear</button>
+        <span class="hint-line" id="modeHint"></span>
+      </div>
+      <div class="bar">
+        <input id="search" class="search" type="search" autocomplete="off"
+               placeholder="Search name, job, skills, address, back contacts…">
+      </div>
+      <div class="bar"><div class="chips" id="chips"></div></div>
+      <div class="card-host" id="cardHost"></div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="cards-col" id="cardsCol">
+      <div class="empty" id="emptyMsg">Nothing selected yet — pick a notch position or a category on the left.</div>
+    </div>
+  </div>
+</div>
+
+<script src="edge_notch_card.js"></script>
+<script>
+(async function () {
+  const S3 = 'https://semlab.s3.us-east-1.amazonaws.com/images/technical-services-program/';
+  const EDGE_KEY = { top: 't', bottom: 'B', left: 'L', right: 'R' };
+  const PALETTE = ['#1b9e77','#d95f02','#7570b3','#e7298a','#66a61e','#e6ab02','#a6761d'];
+
+  // ---- load data ----
+  let data;
+  try {
+    const resp = await fetch('cards_demo.json');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('cardsCol').innerHTML =
+      '<div class="empty">Could not load cards_demo.json (' + e.message + '). Serve the demo over HTTP.</div>';
+    return;
+  }
+  const decoding = data.decoding || {};
+
+  // Per-card model with notch sets + image filenames.
+  const allCards = [];
+  for (const [stem, c] of Object.entries(data.cards || {})) {
+    const fn = c.fn || {};
+    if (!fn.fr) continue;  // need an image name
+    // Precomputed lower-case blob of all text fields, for the search box.
+    const blob = [c.n, c.j, c.a, (c.s || []).join(' '), (c.b || []).join(' ')]
+      .filter(Boolean).join(' ').toLowerCase();
+    allCards.push({
+      stem, name: c.n || stem,
+      t: new Set(c.t || []), B: new Set(c.B || []),
+      L: new Set(c.L || []), R: new Set(c.R || []),
+      fr: fn.fr, br: fn.br || fn.fr,
+      search: blob,
+    });
+  }
+  const TOTAL = allCards.length;
+  document.getElementById('deckTot').textContent = TOTAL;
+  document.getElementById('deckSel').textContent = TOTAL;
+
+  // ---- categories (fields combined by pair; states by primary; letters) ----
+  const categories = [];
+  const tfc = decoding.top_field_codes || {};
+  const byPair = new Map();
+  for (const [name, info] of Object.entries(tfc)) {
+    const sig = info.pair.slice().sort((a,b)=>a-b).join(',');
+    let g = byPair.get(sig);
+    if (!g) { g = { positions: info.pair.slice(), names: [] }; byPair.set(sig, g); }
+    g.names.push(name);
+  }
+  for (const g of byPair.values()) {
+    categories.push({ id: 'f:' + g.positions.join(','), kind: 'field', group: 'Technical field',
+      edge: 'top', positions: g.positions,
+      label: g.names.slice().sort((a,b)=>a.localeCompare(b)).join(' / ') });
+  }
+  const geo = decoding.bottom_geo_codes || {};
+  for (const [state, info] of Object.entries(geo)) {
+    const prim = info.primary && info.primary.pos;
+    if (prim == null) continue;
+    categories.push({ id: 'g:' + state, kind: 'geo', group: 'State', edge: 'bottom',
+      positions: [prim], label: state });
+  }
+  const strong = (decoding.right_alpha || {}).per_letter_strong_positions || {};
+  for (const [letter, pos] of Object.entries(strong)) {
+    if (!pos || !pos.length) continue;
+    categories.push({ id: 'a:' + letter, kind: 'alpha', group: 'Surname letter', edge: 'right',
+      positions: pos.map(Number), label: letter });
+  }
+
+  // ---- matching ----
+  function matches(card, sel) {
+    const set = card[EDGE_KEY[sel.edge]];
+    return sel.positions.every((p) => set.has(p));
+  }
+
+  // ---- state ----
+  let mode = 'notch';
+  const filters = [];   // single source of truth: [{key, kind, edge, positions, label, color?}]
+  let selectedCards = [];
+  let searchRaw = '';   // as typed (for display)
+  let searchTerms = []; // lower-case tokens; a card must contain ALL of them
+
+  // Any active constraint at all (notch/category filters OR a search query).
+  function isActive() { return filters.length > 0 || searchTerms.length > 0; }
+
+  function searchMatch(card) {
+    return searchTerms.every((t) => card.search.includes(t));
+  }
+
+  function recompute() {
+    selectedCards = isActive()
+      ? allCards.filter((c) => filters.every((f) => matches(c, f)) && searchMatch(c))
+      : [];
+  }
+
+  // ---- the card ----
+  const host = document.getElementById('cardHost');
+  // The overlay is built AFTER the card: EdgeNotchCard wipes the host on build,
+  // so anything placed inside it beforehand would be destroyed.
+  let cardOv, notchInfo, catBox;
+
+  const card = new EdgeNotchCard(host, {
+    decoding,
+    showEdgeLabels: false,
+    highlightCompanions: true,
+    universalNotches: {},
+    onSlotHover: (info) => { if (mode === 'notch') renderNotchInfo(info); },
+    onSlotClick: (info) => { if (mode === 'notch') toggleNotch(info.edge, info.pos); },
+    onLayout: positionOverlay,
+  });
+
+  cardOv = document.createElement('div'); cardOv.className = 'card-ov';
+  notchInfo = document.createElement('div'); notchInfo.className = 'ni';
+  catBox = document.createElement('div'); catBox.className = 'catbox'; catBox.style.display = 'none';
+  cardOv.append(notchInfo, catBox);
+  host.appendChild(cardOv);
+
+  function positionOverlay(rect) {
+    if (!cardOv) return;   // overlay not built yet (early onLayout during construction)
+    // onLayout passes the rect (called during construction, before `card` is
+    // assigned — so never touch `card` then). Standalone calls read it fresh.
+    rect = rect || card.getCardRect();
+    if (!rect || !rect.width) return;   // layout not settled yet
+    const ix = rect.width * 0.05, iy = rect.height * 0.12;
+    cardOv.style.left = (rect.left + ix) + 'px';
+    cardOv.style.top = (rect.top + iy) + 'px';
+    cardOv.style.width = (rect.width - 2 * ix) + 'px';
+    cardOv.style.height = (rect.height - 2 * iy) + 'px';
+  }
+
+  // ---- notch mode info panel (explore-style) ----
+  function kindLabel(meta) {
+    return { field: 'Technical field', geo: 'Geographic — state', alpha: 'Surname initial' }[meta && meta.kind] || 'Category';
+  }
+  function renderNotchInfo(info) {
+    if (!info) { notchInfo.innerHTML = NOTCH_HINT; notchInfo.classList.add('show'); return; }
+    const { edge, pos, categories: cats } = info;
+    let html = `<div class="ni-head">${edge} · pos ${pos} — click to ${card.isSelected(edge,pos) ? 'remove' : 'select'}</div>`;
+    if (!cats.length) {
+      html += `<div class="ni-pos">no decoded category here</div>`;
+    } else {
+      const sig = new Map(); let ci = 0;
+      for (const c of cats) {
+        const s = c.positions.slice().sort((a,b)=>a-b).join(',');
+        if (!sig.has(s)) sig.set(s, PALETTE[ci++ % PALETTE.length]);
+        c._col = sig.get(s);
+      }
+      for (const c of cats) {
+        const m = c.meta || {};
+        let detail;
+        if (m.kind === 'geo' && m.primary) {
+          detail = `<span class="ni-pos">code: pos ${m.primary.pos}</span>`;
+        } else {
+          detail = `<span class="ni-pos">pos ${c.positions.join(' + ')}</span>`;
+        }
+        html += `<div class="ni-item"><span class="ni-kind" style="color:${c._col}">`
+              + `<span class="ni-dot" style="background:${c._col}"></span>${kindLabel(m)}</span>`
+              + `<span class="ni-name">${c.name}</span> ${detail}</div>`;
+      }
+    }
+    notchInfo.innerHTML = html;
+    notchInfo.classList.add('show');
+  }
+  const NOTCH_HINT = '<div class="ni-hint">Hover a position to see its categories — click to sort by it</div>';
+
+  function toggleNotch(edge, pos) {
+    const key = `n:${edge}:${pos}`;
+    const i = filters.findIndex((f) => f.key === key);
+    if (i >= 0) filters.splice(i, 1);
+    else filters.push({ key, kind: 'notch', edge, positions: [pos], label: `${edge} · pos ${pos}` });
+    render();
+  }
+
+  // ---- category mode list (inside the card) ----
+  function buildCatList() {
+    const groups = {};
+    for (const c of categories) (groups[c.group] = groups[c.group] || []).push(c);
+    let html = '';
+    for (const [gname, list] of Object.entries(groups)) {
+      html += `<div class="cat-group"><div class="cat-h">${gname}</div><div class="cat-items">`;
+      for (const c of list) {
+        html += `<div class="cat" data-id="${c.id}"><span class="c-n">${c.label}</span>`
+              + `<span class="c-ct" data-ct></span></div>`;
+      }
+      html += `</div></div>`;
+    }
+    catBox.innerHTML = html;
+    catBox.querySelectorAll('.cat').forEach((el) => {
+      const cat = categories.find((c) => c.id === el.dataset.id);
+      el.addEventListener('mouseenter', () => previewCat(cat));
+      el.addEventListener('mouseleave', () => card.clearPreview());
+      el.addEventListener('click', () => { if (!el.classList.contains('disabled')) toggleCat(cat); });
+    });
+  }
+  function previewCat(cat) {
+    const primary = cat.kind === 'geo' ? cat.positions[0] : null;
+    card.previewPositions(cat.positions.map((p) => ({
+      edge: cat.edge, pos: p, color: '#11324f', faint: primary != null && p !== primary,
+    })));
+  }
+  function toggleCat(cat) {
+    const key = 'c:' + cat.id;
+    const i = filters.findIndex((f) => f.key === key);
+    if (i >= 0) filters.splice(i, 1);
+    else filters.push({ key, kind: 'cat', edge: cat.edge, positions: cat.positions, label: cat.label });
+    render();
+  }
+  function updateCatCounts() {
+    const base = isActive() ? selectedCards : allCards;
+    catBox.querySelectorAll('.cat').forEach((el) => {
+      const cat = categories.find((c) => c.id === el.dataset.id);
+      const selected = filters.some((f) => f.key === 'c:' + cat.id);
+      const n = base.reduce((a, c) => a + (matches(c, cat) ? 1 : 0), 0);
+      el.querySelector('[data-ct]').textContent = n;
+      el.classList.toggle('sel', selected);
+      el.classList.toggle('disabled', n === 0 && !selected);
+    });
+  }
+
+  // ---- chips ----
+  function renderChips() {
+    const box = document.getElementById('chips');
+    if (!filters.length) { box.innerHTML = ''; return; }
+    box.innerHTML = filters.map((f) =>
+      `<span class="chip"><b>${f.label}</b><span class="x" data-k="${f.key}">×</span></span>`).join('');
+    box.querySelectorAll('.x').forEach((x) => x.addEventListener('click', () => {
+      const i = filters.findIndex((f) => f.key === x.dataset.k);
+      if (i >= 0) { filters.splice(i, 1); render(); }
+    }));
+  }
+
+  // ---- deck viz ----
+  // A McBee-style edge-notch deck drawn in isometric (front card face + top &
+  // side faces with per-card striations + chamfered corner), like sort_demo.
+  // The stack DEPTH scales with the matching count, so the deck physically
+  // shrinks as you sort.
+  const deckSvg = document.getElementById('deckSvg');
+  function renderDeck() {
+    const active = isActive();
+    const sel = active ? selectedCards.length : TOTAL;
+    document.getElementById('deckSel').textContent = sel;
+    const parts = [];
+    if (filters.length) parts.push(`${filters.length} sort${filters.length > 1 ? 's' : ''}`);
+    if (searchTerms.length) parts.push(`search “${searchRaw}”`);
+    document.getElementById('deckSub').textContent = parts.length
+      ? `${parts.join(' + ')} — ${sel} card${sel === 1 ? '' : 's'} match.`
+      : 'No sort applied — the whole deck.';
+
+    const frac = TOTAL ? sel / TOTAL : 0;
+    const VW = 260, VH = 160;           // viewBox
+    const W = 138, H = 64, ch = 9;
+    const D = 6 + 44 * frac;            // stack depth (px) — shrinks with the sort
+    const dx = D, dy = -D * 0.6;        // recede up & to the right
+    // Center the whole isometric stack in the viewBox (it grows up-right, so
+    // its bounding box is W+dx wide and H+|dy| tall).
+    const x0 = (VW - (W + dx)) / 2;
+    const y0 = (VH - (H - dy)) / 2 - dy;  // -dy is positive (the depth rise)
+    const C = { front: '#f6efd6', top: '#e9dca8', cham: '#d6c690', side: '#c4b78a' };
+    const edge = '#6f6336', str = '#bcb085';
+
+    // top-face striations (one faint line per few cards)
+    const nStr = Math.max(2, Math.min(64, Math.round(sel / 13)));
+    let stri = '';
+    for (let i = 1; i < nStr; i++) {
+      const t = i / nStr;
+      const sy = y0 + dy * t, sx1 = x0 + dx * t, sx2 = x0 + W - ch + dx * t;
+      stri += `<line x1="${sx1}" y1="${sy}" x2="${sx2}" y2="${sy}" stroke="${str}" stroke-width="0.4" opacity="0.6"/>`;
+    }
+    // hole hints on the front card face (top & bottom rows)
+    let holes = '';
+    const nH = 16, m = 12;
+    for (let i = 0; i < nH; i++) {
+      const hx = x0 + m + (W - 2 * m) * i / (nH - 1);
+      if (hx > x0 + W - ch - 2) continue;  // skip under the chamfer
+      holes += `<circle cx="${hx}" cy="${y0 + 6}" r="1.3" fill="none" stroke="#b7a87a" stroke-width="0.5"/>`
+             + `<circle cx="${hx}" cy="${y0 + H - 6}" r="1.3" fill="none" stroke="#b7a87a" stroke-width="0.5"/>`;
+    }
+
+    deckSvg.innerHTML = `
+      <polygon points="${x0},${y0} ${x0+W-ch},${y0} ${x0+W-ch+dx},${y0+dy} ${x0+dx},${y0+dy}"
+               fill="${C.top}" stroke="${edge}" stroke-width="1"/>
+      <polygon points="${x0+W-ch},${y0} ${x0+W},${y0+ch} ${x0+W+dx},${y0+ch+dy} ${x0+W-ch+dx},${y0+dy}"
+               fill="${C.cham}" stroke="${edge}" stroke-width="1"/>
+      <polygon points="${x0+W},${y0+ch} ${x0+W+dx},${y0+ch+dy} ${x0+W+dx},${y0+H+dy} ${x0+W},${y0+H}"
+               fill="${C.side}" stroke="${edge}" stroke-width="1"/>
+      ${stri}
+      <polygon points="${x0},${y0} ${x0+W-ch},${y0} ${x0+W},${y0+ch} ${x0+W},${y0+H} ${x0},${y0+H}"
+               fill="${C.front}" stroke="${edge}" stroke-width="1.2"/>
+      ${holes}
+    `;
+  }
+
+  // ---- right column (lazy images, flip on click) ----
+  const cardsCol = document.getElementById('cardsCol');
+  function renderResults() {
+    if (!isActive()) {
+      cardsCol.innerHTML = '<div class="empty">Nothing selected yet — pick a notch position, a category, or type a search.</div>';
+      return;
+    }
+    if (!selectedCards.length) {
+      cardsCol.innerHTML = '<div class="empty">No cards match.</div>';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const c of selectedCards) {
+      const rc = document.createElement('div');
+      rc.className = 'rc';
+      // Native loading="lazy": the browser only fetches images near the
+      // viewport, so hundreds of off-screen cards cost no bandwidth.
+      rc.innerHTML =
+        `<div class="rc-frame"><img alt="${c.name}" loading="lazy" decoding="async"`
+        + ` src="${S3 + c.fr}" data-front="${S3 + c.fr}" data-back="${S3 + c.br}" data-side="front"></div>`
+        + `<div class="rc-cap"><span>${c.name}</span><span class="rc-side">front</span></div>`;
+      const img = rc.querySelector('img');
+      img.addEventListener('error', () => { img.style.opacity = '0.25'; });
+      rc.addEventListener('click', () => {
+        const side = img.dataset.side === 'front' ? 'back' : 'front';
+        img.dataset.side = side;
+        img.src = side === 'front' ? img.dataset.front : img.dataset.back;
+        rc.querySelector('.rc-side').textContent = side;
+      });
+      frag.appendChild(rc);
+    }
+    cardsCol.innerHTML = '';
+    cardsCol.appendChild(frag);
+    document.querySelector('.right').scrollTop = 0;
+  }
+
+  // ---- master render ----
+  function render() {
+    recompute();
+    card.setSelectedNotches(filters.flatMap((f) => f.positions.map((p) => ({ edge: f.edge, pos: p }))));
+    renderChips();
+    renderDeck();
+    renderResults();
+    if (mode === 'category') updateCatCounts();
+  }
+
+  // ---- mode switching ----
+  function setMode(m) {
+    mode = m;
+    document.getElementById('mNotch').classList.toggle('active', m === 'notch');
+    document.getElementById('mCat').classList.toggle('active', m === 'category');
+    card.clearPreview();
+    if (m === 'notch') {
+      catBox.style.display = 'none';
+      notchInfo.style.display = '';
+      cardOv.style.pointerEvents = 'none';
+      renderNotchInfo(null);
+      document.getElementById('modeHint').textContent = 'Hover a hole; click to sort by that position.';
+    } else {
+      notchInfo.style.display = 'none';
+      catBox.style.display = '';
+      cardOv.style.pointerEvents = 'none';   // catbox itself re-enables pointer events
+      updateCatCounts();
+      document.getElementById('modeHint').textContent = 'Hover a category to see its notches; click to sort.';
+    }
+  }
+
+  document.getElementById('mNotch').addEventListener('click', () => setMode('notch'));
+  document.getElementById('mCat').addEventListener('click', () => setMode('category'));
+
+  // Always-on text search — layers on top of the current mode and AND-combines
+  // with any active notch/category filters.
+  const searchInput = document.getElementById('search');
+  searchInput.addEventListener('input', () => {
+    searchRaw = searchInput.value.trim();
+    searchTerms = searchRaw.toLowerCase().split(/\s+/).filter(Boolean);
+    render();
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    filters.length = 0;
+    searchInput.value = ''; searchRaw = ''; searchTerms = [];
+    render();
+  });
+
+  // ---- init ----
+  buildCatList();
+  setMode('notch');
+  render();
+  // Position the in-card overlay once layout has settled, and on resize.
+  // Wrap so the rAF timestamp / resize Event isn't passed as a "rect".
+  requestAnimationFrame(() => positionOverlay());
+  setTimeout(() => positionOverlay(), 60);
+  window.addEventListener('resize', () => positionOverlay());
+})();
+</script>
+</body>
+</html>

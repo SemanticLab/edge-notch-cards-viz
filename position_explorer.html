@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edge-notch card — position explorer</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #fafaf6; color: #222; }
+  header { padding: 16px 24px; border-bottom: 1px solid #ddd; background: #fff; }
+  header h1 { margin: 0 0 4px; font-size: 18px; }
+  header p { margin: 0; font-size: 13px; color: #555; }
+  main { padding: 24px; }
+  .card-host { position: relative; background: #fff; border: 1px solid #e3e3da;
+               border-radius: 8px; height: 70vh; min-height: 360px; }
+
+  /* In-card overlay: a translucent panel centered over the card showing the
+     categories the hovered hole belongs to. pointer-events:none so it never
+     blocks hovering the holes underneath. */
+  .ov { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        max-width: 62%; pointer-events: none; text-align: center;
+        background: rgba(255, 255, 255, 0.92); border: 1px solid #e6dca8;
+        border-radius: 10px; padding: 14px 18px; box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+        opacity: 0; transition: opacity 120ms ease; }
+  .ov.show { opacity: 1; }
+  .ov-hint { color: #999; font-size: 14px; }
+  .ov-head { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+             color: #999; margin-bottom: 8px; }
+  .ov-list { list-style: none; margin: 0; padding: 0; }
+  .ov-list li { margin: 10px 0; }
+  .ov-kind { display: block; font-size: 11px; text-transform: uppercase;
+             letter-spacing: 0.04em; margin-bottom: 1px; }
+  .ov-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
+            margin-right: 6px; vertical-align: middle; }
+  .ov-name { font-size: 17px; font-weight: 600; color: #1b1b1b; }
+  .ov-pos { font-size: 12px; color: #777; }
+  .ov-conf { font-size: 10px; color: #aaa; letter-spacing: 0; text-transform: none; }
+  .ov-comp { font-size: 11px; color: #b0b0b0; margin-top: 1px; }
+  .ov-empty { color: #888; }
+  .ov-empty span { font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Edge-notch card — position explorer</h1>
+  <p>Hover any position. Its categories appear inside the card, and the
+     positions that make up each one light up in a matching color — so you can
+     tell which positions pair with which category. The hovered position itself
+     stays dark.</p>
+</header>
+<main>
+  <div class="card-host" id="card-host"></div>
+</main>
+
+<script src="edge_notch_card.js"></script>
+<script>
+(async function () {
+  const host = document.getElementById('card-host');
+
+  let decoding;
+  try {
+    const resp = await fetch('notch_decoding.json');
+    if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
+    decoding = await resp.json();
+  } catch (e) {
+    decoding = FALLBACK_DECODING;
+  }
+
+  // In-card overlay element (sibling of the SVG inside the host). Appended
+  // AFTER the card is constructed — EdgeNotchCard clears the host on build, so
+  // adding it earlier would wipe it.
+  const ov = document.createElement('div');
+  ov.className = 'ov';
+
+  const HINT = '<div class="ov-hint">Hover a position to see what it encodes</div>';
+  function showHint() { ov.innerHTML = HINT; ov.classList.add('show'); }
+
+  function kindLabel(meta) {
+    switch (meta && meta.kind) {
+      case 'field': return 'Technical field';
+      case 'geo':   return 'Geographic — state';
+      case 'alpha': return 'Surname initial';
+      default:      return 'Category';
+    }
+  }
+
+  function posLabel(positions) {
+    if (!positions || positions.length <= 1) return `pos ${positions ? positions[0] : ''}`;
+    return `pos ${positions.join(' + ')}`;
+  }
+
+  function renderOverlay(info) {
+    if (!info) { showHint(); return; }
+    const { edge, pos, categories } = info;
+    let html = `<div class="ov-head">${edge} · pos ${pos}</div>`;
+    if (!categories.length) {
+      html += `<div class="ov-empty">No decoded category<br>`
+            + `<span>structural / unused position</span></div>`;
+    } else {
+      html += '<ul class="ov-list">';
+      for (const c of categories) {
+        const color = c.color || '#777';
+        const m = c.meta || {};
+        let kindLine = kindLabel(m);
+        let detail;
+        if (m.kind === 'geo' && m.primary) {
+          // A state's real code is its single primary needle; companions are
+          // co-notched positions (unreliable at low n), shown separately.
+          const conf = [m.confidence, (m.n != null ? 'n=' + m.n : null)].filter(Boolean).join(' · ');
+          if (conf) kindLine += ` <span class="ov-conf">${conf}</span>`;
+          const comps = (m.companions || []).map((x) => x.pos);
+          detail = `<span class="ov-pos">code: pos ${m.primary.pos}</span>`;
+          if (comps.length) detail += `<div class="ov-comp">+ co-notched: ${comps.join(', ')}</div>`;
+        } else {
+          detail = `<span class="ov-pos">${posLabel(c.positions)}</span>`;
+        }
+        html += `<li><div class="ov-kind" style="color:${color}">`
+              + `<span class="ov-dot" style="background:${color}"></span>${kindLine}</div>`
+              + `<span class="ov-name">${c.name}</span> ${detail}</li>`;
+      }
+      html += '</ul>';
+    }
+    ov.innerHTML = html;
+    ov.classList.add('show');
+  }
+
+  new EdgeNotchCard(host, {
+    decoding,
+    showEdgeLabels: false,      // just the holes — no perimeter labels/titles
+    highlightCompanions: true,  // each category's positions get a distinct color
+    universalNotches: {},       // start as a clean grid of holes
+    onSlotHover: renderOverlay,
+  });
+
+  host.appendChild(ov);
+  showHint();
+})();
+
+// Inline fallback so the page works when opened directly off disk (fetch may
+// fail under file://). Mirrors scripts/data/notch_decoding.json (subset). The
+// left edge is intentionally absent — its meaning is unknown.
+const FALLBACK_DECODING = {
+  top_field_codes: {
+    'physics':                { pair: [3, 20],  recall: 0.94, n: 111 },
+    'mathematics':            { pair: [4, 24],  recall: 0.94, n: 99 },
+    'electronics':            { pair: [7, 8],   recall: 0.91, n: 64 },
+    'chemistry':              { pair: [14, 20], recall: 0.93, n: 29 },
+    'optics':                 { pair: [5, 22],  recall: 0.98, n: 80 },
+    'photography':            { pair: [14, 22], recall: 0.92, n: 26 },
+    'mechanical engineering': { pair: [7, 13],  recall: 0.91, n: 66 },
+    'holography':             { pair: [7, 15],  recall: 1.00, n: 25 },
+    'hydraulics':             { pair: [11, 17], recall: 1.00, n: 19 },
+    'architecture':           { pair: [14, 25], recall: 0.94, n: 17 },
+  },
+  bottom_geo_codes: {
+    'New York':      { n: 278, confidence: 'high', primary: { pos: 16, recall: 0.953 },
+                       companions: [{ pos: 15 }, { pos: 6 }] },
+    'New Jersey':    { n: 111, confidence: 'high', primary: { pos: 17, recall: 0.874 },
+                       companions: [{ pos: 24 }, { pos: 22 }] },
+    'California':    { n: 51,  confidence: 'high', primary: { pos: 8, recall: 0.980 },
+                       companions: [{ pos: 6 }, { pos: 3 }] },
+    'Massachusetts': { n: 50,  confidence: 'high', primary: { pos: 7, recall: 0.980 },
+                       companions: [{ pos: 3 }, { pos: 5 }] },
+    'Connecticut':   { n: 19,  confidence: 'medium', primary: { pos: 10, recall: 0.947 },
+                       companions: [{ pos: 9 }, { pos: 22 }] },
+  },
+  right_alpha: {
+    per_letter_strong_positions: {
+      A: [12, 13], B: [13], C: [13], E: [8, 13], F: [13],
+      H: [11, 12], K: [12], M: [12], N: [12], O: [10, 11],
+      R: [11], S: [11], V: [9, 10],
+    },
+  },
+};
+</script>
+</body>
+</html>
