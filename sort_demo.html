@@ -124,9 +124,20 @@
      globally as `window.poly2tri`. -->
 <script src="https://cdn.jsdelivr.net/npm/poly2tri@1.5.0/dist/poly2tri.js"></script>
 
+<!-- edge_notch_card.js — loaded only for EdgeNotchCard.naturalToCard, the
+     natural-order → printed-card-number translation used in all UI text. -->
+<script src="edge_notch_card.js"></script>
+
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Card-system numbering: every position shown in UI text (dropdown, stats,
+// card labels) uses the numbers printed on the physical card; the
+// natural-order indices in the data stay internal. Unnumbered holes (the
+// corner-adjacent ones the card leaves unlabeled) fall back to natural order.
+const naturalToCard = window.EdgeNotchCard.naturalToCard;
+const cardPosText = (edge, pos) => naturalToCard(edge, pos) || `pos ${pos} (unnumbered)`;
 
 const stage = document.getElementById('stage');
 const sel = document.getElementById('cat-select');
@@ -677,15 +688,15 @@ function updateClouds(dt) {
 // =============================================================
 // Soda can on top of the deck (for scale reference)
 // =============================================================
-// Real card: 3.25" × 7". A standard 12oz soda can: 2.6" diameter × 4.83"
+// Real card: 4" × 9". A standard 12oz soda can: 2.6" diameter × 4.83"
 // tall. Using the card's short dimension as the reference (15 scene units
-// = 3.25"), 1 scene unit ≈ 0.217". So the can is roughly 12 units
-// diameter × 22 units tall.
+// = 4"), 1 scene unit ≈ 0.267". So the can is roughly 9.75 units
+// diameter × 18.1 units tall.
 
-// Scale: 1 scene unit ≈ 0.217" (since CARD_H = 15 units = 3.25" short card edge).
-// A 12 oz soda can is 2.6" diameter (= 11.98 units) × 4.83" tall (= 22.29 units).
-const CAN_RADIUS = 11.98 / 2;
-const CAN_HEIGHT = 22.29;
+// Scale: 1 scene unit ≈ 0.267" (since CARD_H = 15 units = 4" short card edge).
+// A 12 oz soda can is 2.6" diameter (= 9.75 units) × 4.83" tall (= 18.11 units).
+const CAN_RADIUS = 9.75 / 2;
+const CAN_HEIGHT = 18.11;
 const canGroup = new THREE.Group();
 
 // Body: a cylinder with the Diet Coke silver-and-red palette baked into
@@ -746,7 +757,7 @@ canRim.rotation.x = -Math.PI / 2;
 canRim.position.y = CAN_HEIGHT / 2;
 canGroup.add(canRim);
 // Pull-tab nub (a tiny rectangle on the top)
-const tabGeom = new THREE.BoxGeometry(2.5, 0.3, 1);
+const tabGeom = new THREE.BoxGeometry(2.0, 0.25, 0.8);
 const tabMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b0 });
 const tab = new THREE.Mesh(tabGeom, tabMat);
 tab.position.set(CAN_RADIUS * 0.35, CAN_HEIGHT / 2 + 0.2, 0);
@@ -950,10 +961,11 @@ function drawLabelOnCanvas(ctx, stem, depthIdx) {
     ctx.fillText('(no data for ' + stem + ')', 30, 50);
     return;
   }
-  // Packed format: short keys (n, j, a, s, b).
+  // Packed format: short keys (n, j, c, a, s, b).
   const name = c.n || stem;
   const addr = (c.a || '').split(';')[0].trim();
   const job = c.j || '';
+  const company = c.c || '';
   const fields = (c.s || []).join(', ');
   const backNames = c.b || [];
 
@@ -974,9 +986,16 @@ function drawLabelOnCanvas(ctx, stem, depthIdx) {
   ctx.font = 'italic 24px Georgia, serif';
   ctx.fillText(truncate(ctx, job, LEFT_W), M, 100);
 
+  // Company (the left edge sorts on its first letter, so show it)
+  if (company) {
+    ctx.fillStyle = '#1a3a6e';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(truncate(ctx, company, LEFT_W), M, 132);
+  }
+
   ctx.fillStyle = '#3a3024';
   ctx.font = '20px sans-serif';
-  wrapText(ctx, addr, M, 140, LEFT_W, 26, 2);
+  wrapText(ctx, addr, M, company ? 162 : 140, LEFT_W, 24, 2);
 
   ctx.fillStyle = '#1a1a1a';
   ctx.font = 'bold 20px sans-serif';
@@ -1027,7 +1046,8 @@ function drawLabelOnCanvas(ctx, stem, depthIdx) {
       const catName = lastSortCategory.label.split(' · ')[1];
       ctx.fillStyle = '#7a1010';
       ctx.font = 'italic 18px sans-serif';
-      const line = `Pulled by ${lastSortCategory.edge} [${matchedPositions.join(',')}] → ${catName}`;
+      const matchedLabels = matchedPositions.map((p) => cardPosText(lastSortCategory.edge, p));
+      const line = `Pulled by ${lastSortCategory.edge} [${matchedLabels.join(',')}] → ${catName}`;
       ctx.fillText(truncate(ctx, line, LABEL_CANVAS_W - 2 * M), M, LABEL_CANVAS_H - 16);
     }
   }
@@ -1210,71 +1230,87 @@ let categories;
 
 function buildAllCategories() {
   allCategories = [];
-  // Top edge: technical fields, each a 2-needle pair. Fields that share the
-  // SAME pair are indistinguishable by notches (e.g. acoustics & sound
-  // generation), so combine them into one entry ("acoustics / sound
-  // generation") rather than listing each separately.
-  const topByPair = new Map();  // pair-signature -> { positions, names[], n }
-  for (const [name, info] of Object.entries(decoding.top_field_codes || {})) {
-    const positions = info.pair.slice();
-    const sig = positions.slice().sort((a, b) => a - b).join(',');
-    let g = topByPair.get(sig);
-    if (!g) { g = { positions, names: [], n: 0 }; topByPair.set(sig, g); }
-    g.names.push(name);
-    g.n += (info.n || 0);
-  }
-  for (const g of topByPair.values()) {
-    const combined = g.names.slice().sort((a, b) => a.localeCompare(b)).join(' / ');
+  // TOP-EDGE codes from the ORIGINAL punch-code key (transcribed in
+  // scripts/data/punch_code_key.json, validated against the cards in
+  // KEY_VALIDATION.md). Each code is a 2-needle pair; the dropdown groups
+  // them by the key's status so the uncertainty is visible:
+  //   active        - normal code, most are confirmed by the card data
+  //   consolidated  - circled on the key: folded into another category
+  //   retired       - struck/X-ed on the key, essentially unpunched
+  //   spare         - listed with no label (pulls only chance overlaps)
+  // The bottom/right/left edge decodes were removed pending further research.
+  const STATUS_GROUPS = {
+    active:       'Top — areas of work (active codes)',
+    consolidated: 'Top — consolidated codes (folded into another)',
+    retired:      'Top — retired codes',
+    spare:        'Top — spare / unlabeled codes',
+  };
+  const STATUS_ORDER = { active: 0, consolidated: 1, retired: 2, spare: 3 };
+  const codes = (decoding.top_key_codes || []).slice()
+    .sort((a, b) => (STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+      || a.name.localeCompare(b.name, undefined, { numeric: true }));
+  for (const e of codes) {
+    let name = e.name;
+    if (e.status === 'consolidated' && e.parent) name += ` → ${e.parent}`;
+    if (e.evidence === 'contradicted') name += ' ⚠';
     allCategories.push({
-      label: `top · ${combined}`,
-      group: 'Top — technical fields (2 needles)',
+      label: `top · ${name}`,
+      group: STATUS_GROUPS[e.status] || 'Top',
       edge: 'top',
-      positions: g.positions,
-      decodedN: g.n,
+      positions: e.pair.slice(),
+      decodedN: 0,
+      status: e.status,
     });
   }
-  // Bottom edge: state codes are also multi-position-per-state and noisy.
-  // A single needle pulls a mix of states, not just the "primary" one.
-  // Label each position with the empirical top 3 states + counts (computed
-  // from the dataset at pack time).
-  for (const [pos, info] of Object.entries(bottomPosStatesData)) {
-    const top = info.top || [];
-    if (top.length === 0) continue;
-    const topShort = top.slice(0, 3)
-      .map(([s, c]) => `${s}(${c})`).join(', ');
+
+  // The other edges (Rosenboom 1968 notes — EDGES_V2.md). Needles can only
+  // express "holes clipped", so the proximity classes that require an
+  // UN-clipped hole are labeled as the supersets a needle pull really gives.
+  allCategories.push(
+    { label: 'top · New York City (3 needles)', group: 'Top — NYC proximity',
+      edge: 'top', positions: [32, 33, 34], decodedN: 0, status: 'NYC proximity code' },
+    { label: 'top · within 50 mi of NYC — incl. NYC (2 needles)', group: 'Top — NYC proximity',
+      edge: 'top', positions: [32, 34], decodedN: 0, status: 'NYC proximity code' },
+    { label: 'top · everywhere — base hole, drops the whole deck (1 needle)', group: 'Top — NYC proximity',
+      edge: 'top', positions: [34], decodedN: 0, status: 'NYC proximity code' },
+  );
+  const bg = decoding.bottom_geo_triples || {};
+  for (const s of (bg.states || [])) {
     allCategories.push({
-      label: `bottom · pos ${pos} — top: ${topShort}`,
-      group: 'Bottom — state (noisy, see counts)',
-      edge: 'bottom',
-      positions: [Number(pos)],
-      decodedN: info.n || 0,
+      label: `bottom · ${s.name}`, group: 'Bottom — states & countries (3 needles)',
+      edge: 'bottom', positions: s.triple.slice(), decodedN: s.n || 0,
+      status: '3-hole state code',
     });
   }
-  // Right edge: the McBee right-edge alpha code is multi-position per
-  // letter AND very noisy. A single needle at one position pulls a mix
-  // of many surnames. The packed data includes the EMPIRICAL letter
-  // distribution per right-edge position (`right_pos_letters`) — what
-  // actually falls when you pull that needle, computed from the dataset.
-  // We label each position with its top 3 letters (with their counts)
-  // so the user sees the honest truth: "pos 13 — B(41), G(32), F(30)".
-  const rightPosLetters = rightPosLettersData || {};
-  for (const [pos, info] of Object.entries(rightPosLetters)) {
-    const top = info.top || [];
-    if (top.length === 0) continue;
-    const topShort = top.slice(0, 3)
-      .map(([L, c]) => `${L}(${c})`).join(', ');
+  for (const c of (bg.cities || [])) {
     allCategories.push({
-      label: `right · pos ${pos} — top: ${topShort}`,
-      group: 'Right — surname first letter (noisy, see counts)',
-      edge: 'right',
-      positions: [Number(pos)],
-      decodedN: info.n || 0,
+      label: `bottom · ${c.name}${c.recall === 1 ? '' : ' ?'}`,
+      group: 'Bottom — major cities (3 needles)',
+      edge: 'bottom', positions: c.triple.slice(), decodedN: c.n || 0,
+      status: '3-hole city code',
     });
   }
-  // Left edge: meaning unknown, so it contributes no sort categories. (We
-  // dropped the earlier "number of names on the back" idea — a count that
-  // grows over time can't be encoded by a fixed set of punched holes.)
-  allCategories.sort((a, b) => a.label.localeCompare(b.label));
+  for (const [letter, info] of Object.entries(decoding.right_name_letters || {})) {
+    allCategories.push({
+      label: `right · surname ${letter}`, group: 'Right — surname first letter (fuzzy)',
+      edge: 'right', positions: info.pair_natural.slice(), decodedN: info.n || 0,
+      status: 'surname-initial code (fuzzy)',
+    });
+  }
+  for (const [letter, info] of Object.entries(decoding.left_company_letters || {})) {
+    allCategories.push({
+      label: `left · company ${letter}`, group: 'Left — company first letter (fuzzy)',
+      edge: 'left', positions: info.pair_natural.slice(), decodedN: info.n || 0,
+      status: 'company-initial code (fuzzy)',
+    });
+  }
+  for (const m of (decoding.left_markers || [])) {
+    allCategories.push({
+      label: `left · ${m.name}`, group: 'Left — informal markers',
+      edge: 'left', positions: m.positions.slice(), decodedN: 0,
+      status: 'informal marker',
+    });
+  }
 }
 
 // Count how many cards in `set` are notched at all `category.positions` on
@@ -1949,7 +1985,8 @@ window.addEventListener('resize', onResize);
     stats.innerHTML =
       `Selected <strong>${currentCategory.label.split(' · ')[1]}</strong>` +
       ` — needle at position${currentCategory.positions.length > 1 ? 's' : ''} ` +
-      `<code>${currentCategory.positions.join(', ')}</code> on the ${currentCategory.edge} edge.` +
+      `<code>${currentCategory.positions.map((p) => cardPosText(currentCategory.edge, p)).join(', ')}</code>` +
+      ` on the ${currentCategory.edge} edge.` +
       `<br><span style="opacity:0.7">Round ${roundNum}: ${workingSet.length} cards on the table.` +
       ` ${currentCategory.hits} would match.</span>`;
   });

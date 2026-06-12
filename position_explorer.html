@@ -19,16 +19,19 @@
      categories the hovered hole belongs to. pointer-events:none so it never
      blocks hovering the holes underneath. */
   .ov { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-        max-width: 62%; pointer-events: none; text-align: center;
-        background: rgba(255, 255, 255, 0.92); border: 1px solid #e6dca8;
-        border-radius: 10px; padding: 14px 18px; box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+        max-width: 70%; max-height: 88%; overflow: hidden;
+        pointer-events: none; text-align: center;
+        background: rgba(255, 255, 255, 0.94); border: 1px solid #e6dca8;
+        border-radius: 10px; padding: 10px 16px; box-shadow: 0 2px 14px rgba(0,0,0,0.08);
         opacity: 0; transition: opacity 120ms ease; }
   .ov.show { opacity: 1; }
   .ov-hint { color: #999; font-size: 14px; }
   .ov-head { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
-             color: #999; margin-bottom: 8px; }
-  .ov-list { list-style: none; margin: 0; padding: 0; }
-  .ov-list li { margin: 10px 0; }
+             color: #999; margin-bottom: 6px; }
+  .ov-list { list-style: none; margin: 0; padding: 0;
+             /* many codes can share a position — flow into columns */
+             column-width: 240px; column-gap: 18px; }
+  .ov-list li { margin: 6px 0; break-inside: avoid; }
   .ov-kind { display: block; font-size: 11px; text-transform: uppercase;
              letter-spacing: 0.04em; margin-bottom: 1px; }
   .ov-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px;
@@ -44,10 +47,16 @@
 <body>
 <header>
   <h1>Edge-notch card — position explorer</h1>
-  <p>Hover any position. Its categories appear inside the card, and the
-     positions that make up each one light up in a matching color — so you can
-     tell which positions pair with which category. The hovered position itself
-     stays dark.</p>
+  <p>Hover any position. Top-edge specialties come from the <b>original
+     punch-code key</b> (KEY_VALIDATION.md) with each code's status (active /
+     consolidated / retired / spare); the top-right three holes are the
+     <b>NYC proximity code</b>; the bottom edge holds <b>3-needle state &amp;
+     city codes</b>; the right edge the <b>surname's first letter</b> and the
+     left edge the <b>company's first letter</b> plus the informal "good
+     guys" marker (all per Rosenboom's 1968 notes — EDGES_V2.md). The small
+     brown numbers are the position numbers printed on the physical card
+     ("card system"); the panel shows both that and our left-to-right
+     "natural order" used in the data.</p>
 </header>
 <main>
   <div class="card-host" id="card-host"></div>
@@ -58,9 +67,12 @@
 (async function () {
   const host = document.getElementById('card-host');
 
+  // Top-edge codes from the ORIGINAL punch-code key (validated against the
+  // cards - see KEY_VALIDATION.md). Bottom/right/left decodes were removed
+  // from the interfaces pending further research.
   let decoding;
   try {
-    const resp = await fetch('notch_decoding.json');
+    const resp = await fetch('key_decoding.json');
     if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
     decoding = await resp.json();
   } catch (e) {
@@ -78,25 +90,53 @@
 
   function kindLabel(meta) {
     switch (meta && meta.kind) {
-      case 'field': return 'Technical field';
-      case 'geo':   return 'Geographic — state';
-      case 'alpha': return 'Surname initial';
-      default:      return 'Category';
+      case 'key':           return 'Area of work (punch-code key)';
+      case 'proximity':     return 'NYC proximity (top-right code)';
+      case 'geo3':          return meta.city ? 'City — 3-needle code' : 'State/country — 3-needle code';
+      case 'nameletter':    return 'Surname first letter';
+      case 'companyletter': return 'Company first letter';
+      case 'marker':        return 'Informal marker';
+      case 'field':         return 'Technical field';
+      case 'geo':           return 'Geographic — state';
+      case 'alpha':         return 'Surname initial';
+      default:              return 'Category';
     }
   }
 
-  function posLabel(positions) {
-    if (!positions || positions.length <= 1) return `pos ${positions ? positions[0] : ''}`;
-    return `pos ${positions.join(' + ')}`;
+  // Status/evidence chips for key codes, so the uncertainty is visible.
+  const STATUS_COLORS = { active: '#2e7d32', consolidated: '#b07d10',
+                          retired: '#b3372f', spare: '#8a93a0' };
+  function statusLine(m) {
+    const col = STATUS_COLORS[m.status] || '#777';
+    let s = `<span style="color:${col}; font-weight:600">${m.status}</span>`;
+    if (m.evidence && m.evidence !== 'spare') s += ` · ${m.evidence} by card data`;
+    return `<div class="ov-conf">${s}</div>`;
+  }
+
+  // "pos 3 + 20 · card 33 + 16" — natural order first, printed card-system
+  // labels after (unnumbered holes show as "·" in the card list).
+  function posLabel(edge, positions) {
+    if (!positions || !positions.length) return '';
+    const nat = positions.join(' + ');
+    const card = positions.map((p) => EdgeNotchCard.naturalToCard(edge, p) || '·').join(' + ');
+    return `pos ${nat} · card ${card}`;
+  }
+
+  function cardSuffix(edge, pos) {
+    const label = EdgeNotchCard.naturalToCard(edge, pos);
+    return label ? ` (card ${label})` : '';
   }
 
   function renderOverlay(info) {
     if (!info) { showHint(); return; }
-    const { edge, pos, categories } = info;
-    let html = `<div class="ov-head">${edge} · pos ${pos}</div>`;
+    const { edge, pos, cardPos, categories } = info;
+    const cardBit = cardPos ? `card ${cardPos}` : 'no printed number';
+    let html = `<div class="ov-head">${edge} · pos ${pos} · ${cardBit}</div>`;
     if (!categories.length) {
-      html += `<div class="ov-empty">No decoded category<br>`
-            + `<span>structural / unused position</span></div>`;
+      const why = (edge === 'top')
+        ? 'not in the punch-code key'
+        : 'this edge is under research — its encoding is not yet known';
+      html += `<div class="ov-empty">No decoded category<br><span>${why}</span></div>`;
     } else {
       html += '<ul class="ov-list">';
       for (const c of categories) {
@@ -104,16 +144,40 @@
         const m = c.meta || {};
         let kindLine = kindLabel(m);
         let detail;
-        if (m.kind === 'geo' && m.primary) {
+        if (m.kind === 'key') {
+          detail = `<span class="ov-pos">${posLabel(c.edge || edge, c.positions)}</span>`;
+          detail += statusLine(m);
+          if (m.parent) detail += `<div class="ov-comp">folded into: ${m.parent}</div>`;
+          if (m.note) detail += `<div class="ov-comp">${m.note}</div>`;
+        } else if (m.kind === 'proximity') {
+          detail = `<span class="ov-pos">${posLabel(c.edge || edge, c.positions)}</span>`;
+          if ((m.excluded || []).length) {
+            detail += `<div class="ov-comp">pos ${m.excluded.join(', ')} must be UN-clipped</div>`;
+          }
+          if (m.evidence) detail += `<div class="ov-comp">${m.evidence}</div>`;
+        } else if (m.kind === 'geo3') {
+          detail = `<span class="ov-pos">${posLabel(c.edge || edge, c.positions)} · 3 needles</span>`;
+          const bits = [];
+          if (m.n != null) bits.push(`n=${m.n}`);
+          if (m.recall != null) bits.push(`recall ${(m.recall * 100).toFixed(0)}%`);
+          if (bits.length) detail += `<div class="ov-conf">${bits.join(' · ')}</div>`;
+          if (m.note) detail += `<div class="ov-comp">${m.note}</div>`;
+        } else if (m.kind === 'nameletter' || m.kind === 'companyletter') {
+          detail = `<span class="ov-pos">${posLabel(c.edge || edge, c.positions)}</span>`
+                 + `<div class="ov-conf">n=${m.n} · recall ${((m.recall || 0) * 100).toFixed(0)}% · fuzzy code</div>`;
+        } else if (m.kind === 'marker') {
+          detail = `<span class="ov-pos">${posLabel(c.edge || edge, c.positions)}</span>`;
+          if (m.evidence) detail += `<div class="ov-comp">${m.evidence}</div>`;
+        } else if (m.kind === 'geo' && m.primary) {
           // A state's real code is its single primary needle; companions are
           // co-notched positions (unreliable at low n), shown separately.
           const conf = [m.confidence, (m.n != null ? 'n=' + m.n : null)].filter(Boolean).join(' · ');
           if (conf) kindLine += ` <span class="ov-conf">${conf}</span>`;
-          const comps = (m.companions || []).map((x) => x.pos);
-          detail = `<span class="ov-pos">code: pos ${m.primary.pos}</span>`;
+          const comps = (m.companions || []).map((x) => `${x.pos}${cardSuffix('bottom', x.pos)}`);
+          detail = `<span class="ov-pos">code: pos ${m.primary.pos}${cardSuffix('bottom', m.primary.pos)}</span>`;
           if (comps.length) detail += `<div class="ov-comp">+ co-notched: ${comps.join(', ')}</div>`;
         } else {
-          detail = `<span class="ov-pos">${posLabel(c.positions)}</span>`;
+          detail = `<span class="ov-pos">${posLabel(c.edge || edge, c.positions)}</span>`;
         }
         html += `<li><div class="ov-kind" style="color:${color}">`
               + `<span class="ov-dot" style="background:${color}"></span>${kindLine}</div>`
@@ -128,6 +192,7 @@
   new EdgeNotchCard(host, {
     decoding,
     showEdgeLabels: false,      // just the holes — no perimeter labels/titles
+    showCardNumbers: true,      // printed card-system numbers next to each hole
     highlightCompanions: true,  // each category's positions get a distinct color
     universalNotches: {},       // start as a clean grid of holes
     onSlotHover: renderOverlay,
@@ -138,40 +203,48 @@
 })();
 
 // Inline fallback so the page works when opened directly off disk (fetch may
-// fail under file://). Mirrors scripts/data/notch_decoding.json (subset). The
-// left edge is intentionally absent — its meaning is unknown.
+// fail under file://). Subset of demo/key_decoding.json — top edge only; the
+// bottom/right/left decodes were removed pending further research.
 const FALLBACK_DECODING = {
-  top_field_codes: {
-    'physics':                { pair: [3, 20],  recall: 0.94, n: 111 },
-    'mathematics':            { pair: [4, 24],  recall: 0.94, n: 99 },
-    'electronics':            { pair: [7, 8],   recall: 0.91, n: 64 },
-    'chemistry':              { pair: [14, 20], recall: 0.93, n: 29 },
-    'optics':                 { pair: [5, 22],  recall: 0.98, n: 80 },
-    'photography':            { pair: [14, 22], recall: 0.92, n: 26 },
-    'mechanical engineering': { pair: [7, 13],  recall: 0.91, n: 66 },
-    'holography':             { pair: [7, 15],  recall: 1.00, n: 25 },
-    'hydraulics':             { pair: [11, 17], recall: 1.00, n: 19 },
-    'architecture':           { pair: [14, 25], recall: 0.94, n: 17 },
+  top_key_codes: [
+    { name: 'physics',                pair: [3, 20],  card_code: '16+33', status: 'active', evidence: 'confirmed' },
+    { name: 'mathematics',            pair: [4, 24],  card_code: '12+32', status: 'active', evidence: 'confirmed' },
+    { name: 'electrical engineer',    pair: [7, 8],   card_code: '28+29', status: 'active', evidence: 'confirmed' },
+    { name: 'chemistry',              pair: [14, 20], card_code: '16+22', status: 'active', evidence: 'confirmed' },
+    { name: 'optics',                 pair: [5, 22],  card_code: '14+31', status: 'active', evidence: 'confirmed' },
+    { name: 'spectroscopy',           pair: [17, 20], card_code: '16+19', status: 'consolidated', parent: 'optics', evidence: 'supported' },
+    { name: 'photography technology', pair: [14, 22], card_code: '14+22', status: 'active', evidence: 'confirmed' },
+    { name: 'mechanical engineer',    pair: [7, 13],  card_code: '23+29', status: 'active', evidence: 'confirmed' },
+    { name: 'holography',             pair: [7, 15],  card_code: '21+29', status: 'active', evidence: 'confirmed' },
+    { name: 'hydraulics + pneumatics', pair: [11, 17], card_code: '19+25', status: 'active', evidence: 'confirmed' },
+    { name: 'architect/designers',    pair: [14, 25], card_code: '11+22', status: 'active', evidence: 'confirmed' },
+    { name: 'digital computer',       pair: [6, 7],   card_code: '29+30', status: 'retired', evidence: 'weak' },
+    { name: 'spare 13+18',            pair: [18, 23], card_code: '13+18', status: 'spare', evidence: 'spare' },
+  ],
+  top_proximity: [
+    { name: 'New York City',          positions: [32, 33, 34], excluded: [] },
+    { name: 'within 50 miles of NYC', positions: [32, 34],     excluded: [33] },
+    { name: 'everywhere else',        positions: [34],         excluded: [32, 33] },
+  ],
+  bottom_geo_triples: {
+    states: [
+      { name: 'New York',      triple: [6, 15, 16],  n: 270, recall: 0.96 },
+      { name: 'New Jersey',    triple: [17, 22, 24], n: 104, recall: 0.93 },
+      { name: 'Massachusetts', triple: [3, 5, 7],    n: 46,  recall: 1.0 },
+      { name: 'California',    triple: [3, 6, 8],    n: 49,  recall: 0.94 },
+    ],
+    cities: [
+      { name: 'Seattle, WA', triple: [5, 6, 11], n: 8, recall: 1.0 },
+    ],
   },
-  bottom_geo_codes: {
-    'New York':      { n: 278, confidence: 'high', primary: { pos: 16, recall: 0.953 },
-                       companions: [{ pos: 15 }, { pos: 6 }] },
-    'New Jersey':    { n: 111, confidence: 'high', primary: { pos: 17, recall: 0.874 },
-                       companions: [{ pos: 24 }, { pos: 22 }] },
-    'California':    { n: 51,  confidence: 'high', primary: { pos: 8, recall: 0.980 },
-                       companions: [{ pos: 6 }, { pos: 3 }] },
-    'Massachusetts': { n: 50,  confidence: 'high', primary: { pos: 7, recall: 0.980 },
-                       companions: [{ pos: 3 }, { pos: 5 }] },
-    'Connecticut':   { n: 19,  confidence: 'medium', primary: { pos: 10, recall: 0.947 },
-                       companions: [{ pos: 9 }, { pos: 22 }] },
-  },
-  right_alpha: {
-    per_letter_strong_positions: {
-      A: [12, 13], B: [13], C: [13], E: [8, 13], F: [13],
-      H: [11, 12], K: [12], M: [12], N: [12], O: [10, 11],
-      R: [11], S: [11], V: [9, 10],
-    },
-  },
+  right_name_letters: { A: { pair_natural: [12, 13], n: 20, recall: 0.65 },
+                        H: { pair_natural: [11, 12], n: 36, recall: 0.64 } },
+  left_company_letters: { A: { pair_natural: [3, 4], n: 39, recall: 0.79 },
+                          B: { pair_natural: [3, 5], n: 64, recall: 0.78 } },
+  left_markers: [
+    { name: 'good guys', positions: [15] },
+    { name: 'highly connected (tentative)', positions: [2] },
+  ],
 };
 </script>
 </body>

@@ -62,14 +62,16 @@
 
   /* notch-mode info panel */
   .ni { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-        max-width: 86%; text-align: center; background: rgba(255,255,255,0.93);
-        border: 1px solid #e6dca8; border-radius: 10px; padding: 10px 14px; pointer-events: none;
+        width: 88%; max-height: 94%; overflow: hidden;
+        text-align: center; background: rgba(255,255,255,0.94);
+        border: 1px solid #e6dca8; border-radius: 10px; padding: 8px 12px; pointer-events: none;
         box-shadow: 0 2px 12px rgba(0,0,0,0.08); opacity: 0; transition: opacity 110ms; }
   .ni.show { opacity: 1; }
   .ni-hint { color: #9aa3af; }
   .ni-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #9aa3af;
-             margin-bottom: 6px; }
-  .ni-item { margin: 5px 0; }
+             margin-bottom: 4px; }
+  .ni-items { column-width: 200px; column-gap: 14px; }
+  .ni-item { margin: 4px 0; break-inside: avoid; }
   .ni-kind { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
   .ni-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px;
             vertical-align: middle; }
@@ -178,7 +180,7 @@
     const fn = c.fn || {};
     if (!fn.fr) continue;  // need an image name
     // Precomputed lower-case blob of all text fields, for the search box.
-    const blob = [c.n, c.j, c.a, (c.s || []).join(' '), (c.b || []).join(' ')]
+    const blob = [c.n, c.j, c.c, c.a, (c.s || []).join(' '), (c.b || []).join(' ')]
       .filter(Boolean).join(' ').toLowerCase();
     allCards.push({
       stem, name: c.n || stem,
@@ -192,39 +194,81 @@
   document.getElementById('deckTot').textContent = TOTAL;
   document.getElementById('deckSel').textContent = TOTAL;
 
-  // ---- categories (fields combined by pair; states by primary; letters) ----
+  // ---- categories: TOP-EDGE codes from the original punch-code key ----
+  // (validated against the cards - KEY_VALIDATION.md). Grouped by status so
+  // the uncertainty is visible. The bottom/right/left edge decodes were
+  // removed pending further research.
+  const STATUS_GROUPS = {
+    active:       'Areas of work — active codes',
+    consolidated: 'Consolidated codes (folded into another)',
+    retired:      'Retired codes',
+    spare:        'Spare / unlabeled codes',
+  };
   const categories = [];
-  const tfc = decoding.top_field_codes || {};
-  const byPair = new Map();
-  for (const [name, info] of Object.entries(tfc)) {
-    const sig = info.pair.slice().sort((a,b)=>a-b).join(',');
-    let g = byPair.get(sig);
-    if (!g) { g = { positions: info.pair.slice(), names: [] }; byPair.set(sig, g); }
-    g.names.push(name);
+  for (const e of (decoding.top_key_codes || [])) {
+    let label = e.name;
+    if (e.status === 'consolidated' && e.parent) label += ' → ' + e.parent;
+    if (e.evidence === 'contradicted') label += ' ⚠';
+    categories.push({
+      id: 'k:' + e.card_code, kind: 'key',
+      group: STATUS_GROUPS[e.status] || 'Other',
+      edge: 'top', positions: e.pair.slice(), label,
+      status: e.status, evidence: e.evidence, note: e.note || null,
+    });
   }
-  for (const g of byPair.values()) {
-    categories.push({ id: 'f:' + g.positions.join(','), kind: 'field', group: 'Technical field',
-      edge: 'top', positions: g.positions,
-      label: g.names.slice().sort((a,b)=>a.localeCompare(b)).join(' / ') });
+  const STATUS_ORDER = { active: 0, consolidated: 1, retired: 2, spare: 3 };
+  categories.sort((a, b) =>
+    (STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+    || a.label.localeCompare(b.label, undefined, { numeric: true }));
+
+  // ---- the other edges (Rosenboom 1968 notes - EDGES_V2.md) ----
+  for (const e of (decoding.top_proximity || [])) {
+    categories.push({
+      id: 'px:' + e.name, kind: 'proximity', group: 'NYC proximity (top right)',
+      edge: 'top', positions: e.positions.slice(), excluded: (e.excluded || []).slice(),
+      label: e.name,
+    });
   }
-  const geo = decoding.bottom_geo_codes || {};
-  for (const [state, info] of Object.entries(geo)) {
-    const prim = info.primary && info.primary.pos;
-    if (prim == null) continue;
-    categories.push({ id: 'g:' + state, kind: 'geo', group: 'State', edge: 'bottom',
-      positions: [prim], label: state });
+  const bg = decoding.bottom_geo_triples || {};
+  for (const s of (bg.states || [])) {
+    categories.push({
+      id: 'st:' + s.name, kind: 'geo3', group: 'States & countries (bottom, 3 needles)',
+      edge: 'bottom', positions: s.triple.slice(), label: s.name,
+    });
   }
-  const strong = (decoding.right_alpha || {}).per_letter_strong_positions || {};
-  for (const [letter, pos] of Object.entries(strong)) {
-    if (!pos || !pos.length) continue;
-    categories.push({ id: 'a:' + letter, kind: 'alpha', group: 'Surname letter', edge: 'right',
-      positions: pos.map(Number), label: letter });
+  for (const c2 of (bg.cities || [])) {
+    categories.push({
+      id: 'ct:' + c2.name, kind: 'geo3', group: 'Major cities (bottom, 3 needles)',
+      edge: 'bottom', positions: c2.triple.slice(),
+      label: c2.name + (c2.recall === 1 ? '' : ' ?'),
+    });
+  }
+  for (const [letter, info] of Object.entries(decoding.right_name_letters || {})) {
+    categories.push({
+      id: 'nl:' + letter, kind: 'nameletter', group: 'Surname first letter (right, fuzzy)',
+      edge: 'right', positions: info.pair_natural.slice(), label: letter,
+    });
+  }
+  for (const [letter, info] of Object.entries(decoding.left_company_letters || {})) {
+    categories.push({
+      id: 'cl:' + letter, kind: 'companyletter', group: 'Company first letter (left, fuzzy)',
+      edge: 'left', positions: info.pair_natural.slice(), label: letter,
+    });
+  }
+  for (const m of (decoding.left_markers || [])) {
+    categories.push({
+      id: 'mk:' + m.name, kind: 'marker', group: 'Informal markers (left)',
+      edge: 'left', positions: m.positions.slice(), label: m.name,
+    });
   }
 
   // ---- matching ----
+  // `excluded` positions must be UN-notched (the NYC proximity classes are
+  // defined by intact holes as much as clipped ones).
   function matches(card, sel) {
     const set = card[EDGE_KEY[sel.edge]];
-    return sel.positions.every((p) => set.has(p));
+    return sel.positions.every((p) => set.has(p))
+        && (sel.excluded || []).every((p) => !set.has(p));
   }
 
   // ---- state ----
@@ -256,6 +300,7 @@
   const card = new EdgeNotchCard(host, {
     decoding,
     showEdgeLabels: false,
+    showCardNumbers: true,      // printed card-system numbers next to each hole
     highlightCompanions: true,
     universalNotches: {},
     onSlotHover: (info) => { if (mode === 'notch') renderNotchInfo(info); },
@@ -284,15 +329,30 @@
 
   // ---- notch mode info panel (explore-style) ----
   function kindLabel(meta) {
-    return { field: 'Technical field', geo: 'Geographic — state', alpha: 'Surname initial' }[meta && meta.kind] || 'Category';
+    return { key: 'Area of work (key)', proximity: 'NYC proximity',
+             geo3: (meta && meta.city) ? 'City (3 needles)' : 'State/country (3 needles)',
+             nameletter: 'Surname initial', companyletter: 'Company initial',
+             marker: 'Informal marker',
+             field: 'Technical field', geo: 'Geographic — state', alpha: 'Surname initial' }[meta && meta.kind] || 'Category';
+  }
+  const STATUS_COLORS = { active: '#2e7d32', consolidated: '#b07d10',
+                          retired: '#b3372f', spare: '#8a93a0' };
+  // Printed card-system label for a natural-order position, for UI text.
+  function cardSuffix(edge, pos) {
+    const label = EdgeNotchCard.naturalToCard(edge, pos);
+    return label ? ` (card ${label})` : '';
   }
   function renderNotchInfo(info) {
     if (!info) { notchInfo.innerHTML = NOTCH_HINT; notchInfo.classList.add('show'); return; }
-    const { edge, pos, categories: cats } = info;
-    let html = `<div class="ni-head">${edge} · pos ${pos} — click to ${card.isSelected(edge,pos) ? 'remove' : 'select'}</div>`;
+    const { edge, pos, cardPos, categories: cats } = info;
+    const cardBit = cardPos ? `card ${cardPos}` : 'no printed number';
+    let html = `<div class="ni-head">${edge} · pos ${pos} · ${cardBit} — click to ${card.isSelected(edge,pos) ? 'remove' : 'select'}</div>`;
     if (!cats.length) {
-      html += `<div class="ni-pos">no decoded category here</div>`;
+      html += (edge === 'top')
+        ? `<div class="ni-pos">not in the punch-code key</div>`
+        : `<div class="ni-pos">this edge is under research — encoding not yet known</div>`;
     } else {
+      html += `<div class="ni-items">`;
       const sig = new Map(); let ci = 0;
       for (const c of cats) {
         const s = c.positions.slice().sort((a,b)=>a-b).join(',');
@@ -301,16 +361,34 @@
       }
       for (const c of cats) {
         const m = c.meta || {};
+        const cEdge = c.edge || edge;
         let detail;
         if (m.kind === 'geo' && m.primary) {
-          detail = `<span class="ni-pos">code: pos ${m.primary.pos}</span>`;
+          detail = `<span class="ni-pos">code: pos ${m.primary.pos}${cardSuffix('bottom', m.primary.pos)}</span>`;
         } else {
-          detail = `<span class="ni-pos">pos ${c.positions.join(' + ')}</span>`;
+          const cardLabels = c.positions.map((p) => EdgeNotchCard.naturalToCard(cEdge, p) || '·').join(' + ');
+          detail = `<span class="ni-pos">pos ${c.positions.join(' + ')} · card ${cardLabels}</span>`;
+        }
+        if (m.kind === 'key') {
+          const sc = STATUS_COLORS[m.status] || '#777';
+          detail += `<div class="ni-pos"><span style="color:${sc}; font-weight:600">${m.status}</span>`
+                  + (m.evidence && m.evidence !== 'spare' ? ` · ${m.evidence} by card data` : '') + `</div>`;
+          if (m.parent) detail += `<div class="ni-pos">folded into: ${m.parent}</div>`;
+        } else if (m.kind === 'proximity' && (m.excluded || []).length) {
+          detail += `<div class="ni-pos">pos ${m.excluded.join(', ')} must be UN-clipped</div>`;
+        } else if (m.kind === 'geo3') {
+          const bits = [];
+          if (m.n != null) bits.push(`n=${m.n}`);
+          if (m.recall != null) bits.push(`recall ${(m.recall * 100).toFixed(0)}%`);
+          detail += `<div class="ni-pos">3 needles${bits.length ? ' · ' + bits.join(' · ') : ''}</div>`;
+        } else if (m.kind === 'nameletter' || m.kind === 'companyletter') {
+          detail += `<div class="ni-pos">fuzzy code · n=${m.n} · recall ${((m.recall || 0) * 100).toFixed(0)}%</div>`;
         }
         html += `<div class="ni-item"><span class="ni-kind" style="color:${c._col}">`
               + `<span class="ni-dot" style="background:${c._col}"></span>${kindLabel(m)}</span>`
               + `<span class="ni-name">${c.name}</span> ${detail}</div>`;
       }
+      html += `</div>`;
     }
     notchInfo.innerHTML = html;
     notchInfo.classList.add('show');
@@ -321,7 +399,8 @@
     const key = `n:${edge}:${pos}`;
     const i = filters.findIndex((f) => f.key === key);
     if (i >= 0) filters.splice(i, 1);
-    else filters.push({ key, kind: 'notch', edge, positions: [pos], label: `${edge} · pos ${pos}` });
+    else filters.push({ key, kind: 'notch', edge, positions: [pos],
+                        label: `${edge} · pos ${pos}${cardSuffix(edge, pos)}` });
     render();
   }
 
@@ -356,7 +435,8 @@
     const key = 'c:' + cat.id;
     const i = filters.findIndex((f) => f.key === key);
     if (i >= 0) filters.splice(i, 1);
-    else filters.push({ key, kind: 'cat', edge: cat.edge, positions: cat.positions, label: cat.label });
+    else filters.push({ key, kind: 'cat', edge: cat.edge, positions: cat.positions,
+                        excluded: cat.excluded || [], label: cat.label });
     render();
   }
   function updateCatCounts() {

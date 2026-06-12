@@ -1,0 +1,1726 @@
+{
+ "_description": "Demo decoding built from the primary sources: the original punch-code key for the top-edge specialties (punch_code_key.json, KEY_VALIDATION.md) and Rosenboom's 1968 operating notes for the other edges (rosenboom_1968_notes.md, EDGES_V2.md, edge_decoding_v2.json). All positions natural-order; card_code is the printed card-system numbering.",
+ "top_key_codes": [
+  {
+   "name": "electrical engineer",
+   "pair": [
+    7,
+    8
+   ],
+   "card_code": "28+29",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "chemical engineer",
+   "pair": [
+    11,
+    25
+   ],
+   "card_code": "11+25",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "civil/structural engineer",
+   "pair": [
+    4,
+    21
+   ],
+   "card_code": "15+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "mechanical engineer",
+   "pair": [
+    7,
+    13
+   ],
+   "card_code": "23+29",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "biology/medicine",
+   "pair": [
+    4,
+    7
+   ],
+   "card_code": "29+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "bio-engineering",
+   "pair": [
+    10,
+    25
+   ],
+   "card_code": "11+26",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "geology/earth sciences",
+   "pair": [
+    3,
+    7
+   ],
+   "card_code": "29+33",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "mathematics",
+   "pair": [
+    4,
+    24
+   ],
+   "card_code": "12+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "physics",
+   "pair": [
+    3,
+    20
+   ],
+   "card_code": "16+33",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "chemistry",
+   "pair": [
+    14,
+    20
+   ],
+   "card_code": "16+22",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "information theory",
+   "pair": [
+    23,
+    24
+   ],
+   "card_code": "12+13",
+   "status": "consolidated",
+   "evidence": "untestable",
+   "page": 1,
+   "parent": "computers, digital systems",
+   "note": "boxed + braced with COMPUTERS on the key - consolidation inferred from the brace; no tagged cards to verify"
+  },
+  {
+   "name": "computers, digital systems",
+   "pair": [
+    19,
+    24
+   ],
+   "card_code": "12+17",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "programming & data processing",
+   "pair": [
+    3,
+    8
+   ],
+   "card_code": "28+33",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "computers - language/poetry",
+   "pair": [
+    11,
+    20
+   ],
+   "card_code": "16+25",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "computers - sound/music",
+   "pair": [
+    5,
+    15
+   ],
+   "card_code": "21+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "computers - graphics, images/photo/film",
+   "pair": [
+    9,
+    23
+   ],
+   "card_code": "13+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "digital computer",
+   "pair": [
+    6,
+    7
+   ],
+   "card_code": "29+30",
+   "status": "retired",
+   "evidence": "weak",
+   "page": 1,
+   "note": "X-ed on the key; the 3 digital-computer cards punch the COMPUTERS code instead"
+  },
+  {
+   "name": "analog computer",
+   "pair": [
+    3,
+    23
+   ],
+   "card_code": "13+33",
+   "status": "retired",
+   "evidence": "untestable",
+   "page": 1,
+   "note": "second digit disputed in transcription (13+33 vs 13+23); unused on the cards either way"
+  },
+  {
+   "name": "spare 13+18",
+   "pair": [
+    18,
+    23
+   ],
+   "card_code": "13+18",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 1
+  },
+  {
+   "name": "metallurgy - metals",
+   "pair": [
+    12,
+    13
+   ],
+   "card_code": "23+24",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "brazing/welding/casting/grinding",
+   "pair": [
+    9,
+    25
+   ],
+   "card_code": "11+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "ceramics",
+   "pair": [
+    9,
+    21
+   ],
+   "card_code": "15+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "fabrics - textiles",
+   "pair": [
+    5,
+    6
+   ],
+   "card_code": "30+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "glass",
+   "pair": [
+    4,
+    22
+   ],
+   "card_code": "14+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "honeycomb hexcels",
+   "pair": [
+    10,
+    11
+   ],
+   "card_code": "25+26",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "paper",
+   "pair": [
+    15,
+    20
+   ],
+   "card_code": "16+21",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "liquid crystals",
+   "pair": [
+    9,
+    18
+   ],
+   "card_code": "18+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "adhesives - fiberglass",
+   "pair": [
+    11,
+    24
+   ],
+   "card_code": "12+25",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1,
+   "note": "the FIBERGLASS half was retired (underlined/X-ed on the key); the cards confirm the code stayed in use for adhesives (10/10)"
+  },
+  {
+   "name": "crystallography",
+   "pair": [
+    12,
+    24
+   ],
+   "card_code": "12+24",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "paint",
+   "pair": [
+    13,
+    15
+   ],
+   "card_code": "21+23",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "acrylics",
+   "pair": [
+    7,
+    19
+   ],
+   "card_code": "17+29",
+   "status": "active",
+   "evidence": "supported",
+   "page": 1
+  },
+  {
+   "name": "plastics",
+   "pair": [
+    5,
+    25
+   ],
+   "card_code": "11+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "materials",
+   "pair": [
+    11,
+    16
+   ],
+   "card_code": "20+25",
+   "status": "active",
+   "evidence": "weak",
+   "page": 1,
+   "note": "weak evidence (5/13) - generic term; key annotations narrow it to 'eg carbon, graphite - magnetic'"
+  },
+  {
+   "name": "dyes + dyeing",
+   "pair": [
+    14,
+    23
+   ],
+   "card_code": "13+22",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "fluorescence",
+   "pair": [
+    14,
+    21
+   ],
+   "card_code": "15+22",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "foams - elastomers",
+   "pair": [
+    4,
+    13
+   ],
+   "card_code": "23+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 1
+  },
+  {
+   "name": "fiberglass",
+   "pair": [
+    13,
+    22
+   ],
+   "card_code": "14+23",
+   "status": "retired",
+   "evidence": "contradicted",
+   "page": 1
+  },
+  {
+   "name": "spare 27+29",
+   "pair": [
+    7,
+    9
+   ],
+   "card_code": "27+29",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 1
+  },
+  {
+   "name": "spare 28+30",
+   "pair": [
+    6,
+    8
+   ],
+   "card_code": "28+30",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 1
+  },
+  {
+   "name": "optics",
+   "pair": [
+    5,
+    22
+   ],
+   "card_code": "14+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "spectroscopy",
+   "pair": [
+    17,
+    20
+   ],
+   "card_code": "16+19",
+   "status": "consolidated",
+   "evidence": "supported",
+   "page": 2,
+   "parent": "optics"
+  },
+  {
+   "name": "lighting & light",
+   "pair": [
+    12,
+    21
+   ],
+   "card_code": "15+24",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "lighting equipment - projection",
+   "pair": [
+    20,
+    25
+   ],
+   "card_code": "11+16",
+   "status": "consolidated",
+   "evidence": "supported",
+   "page": 2,
+   "parent": "lighting & light"
+  },
+  {
+   "name": "lasers - strobes",
+   "pair": [
+    17,
+    25
+   ],
+   "card_code": "11+19",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "holography",
+   "pair": [
+    7,
+    15
+   ],
+   "card_code": "21+29",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "radar + x-rays",
+   "pair": [
+    7,
+    14
+   ],
+   "card_code": "22+29",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2,
+   "note": "RADIATION/IRRADIATION annotated here with an arrow to 24+30 - the cards still punch radiation work here"
+  },
+  {
+   "name": "fibre optics",
+   "pair": [
+    6,
+    16
+   ],
+   "card_code": "20+30",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "neon - ultraviolet",
+   "pair": [
+    9,
+    15
+   ],
+   "card_code": "21+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "spare 14+15",
+   "pair": [
+    21,
+    22
+   ],
+   "card_code": "14+15",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "acoustics + sound generation",
+   "pair": [
+    10,
+    13
+   ],
+   "card_code": "23+26",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "sonar/ultrasonics",
+   "pair": [
+    9,
+    24
+   ],
+   "card_code": "12+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "ultrasonics",
+   "pair": [
+    10,
+    21
+   ],
+   "card_code": "15+26",
+   "status": "consolidated",
+   "evidence": "weak",
+   "page": 2,
+   "parent": "sonar/ultrasonics"
+  },
+  {
+   "name": "audio systems + audio-visual systems",
+   "pair": [
+    13,
+    20
+   ],
+   "card_code": "16+23",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "audio equipment",
+   "pair": [
+    15,
+    25
+   ],
+   "card_code": "11+21",
+   "status": "consolidated",
+   "evidence": "untestable",
+   "page": 2,
+   "parent": "audio systems + audio-visual systems"
+  },
+  {
+   "name": "sound generation",
+   "pair": [
+    8,
+    11
+   ],
+   "card_code": "25+28",
+   "status": "consolidated",
+   "evidence": "contradicted",
+   "page": 2,
+   "parent": "acoustics + sound generation"
+  },
+  {
+   "name": "spare 19+29",
+   "pair": [
+    7,
+    17
+   ],
+   "card_code": "19+29",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2,
+   "note": "blanked on the key, but the cards show this was the ORIGINAL instrumentation/control code before the 18+19 / 15+19 split"
+  },
+  {
+   "name": "spare 27+32",
+   "pair": [
+    4,
+    9
+   ],
+   "card_code": "27+32",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 14+18",
+   "pair": [
+    18,
+    22
+   ],
+   "card_code": "14+18",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 18+23",
+   "pair": [
+    13,
+    18
+   ],
+   "card_code": "18+23",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "digital systems",
+   "pair": [
+    10,
+    16
+   ],
+   "card_code": "20+26",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "instrumentation & control systems",
+   "pair": [
+    17,
+    18
+   ],
+   "card_code": "18+19",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "remote control",
+   "pair": [
+    17,
+    21
+   ],
+   "card_code": "15+19",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "motors",
+   "pair": [
+    8,
+    9
+   ],
+   "card_code": "27+28",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "circuit design",
+   "pair": [
+    16,
+    18
+   ],
+   "card_code": "18+20",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "integrated circuits",
+   "pair": [
+    5,
+    21
+   ],
+   "card_code": "15+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "motion - moving objects",
+   "pair": [
+    5,
+    7
+   ],
+   "card_code": "29+31",
+   "status": "active",
+   "evidence": "untestable",
+   "page": 2
+  },
+  {
+   "name": "solid state",
+   "pair": [
+    21,
+    23
+   ],
+   "card_code": "13+15",
+   "status": "active",
+   "evidence": "contradicted",
+   "page": 2,
+   "note": "cards contradict (2/12) - solid-state people punch the electronics code; key carries an illegible note 'on ---- only'"
+  },
+  {
+   "name": "spare 11+15",
+   "pair": [
+    21,
+    25
+   ],
+   "card_code": "11+15",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 19+26",
+   "pair": [
+    10,
+    17
+   ],
+   "card_code": "19+26",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "television equipment / cathode rays",
+   "pair": [
+    9,
+    20
+   ],
+   "card_code": "16+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "television systems",
+   "pair": [
+    15,
+    23
+   ],
+   "card_code": "13+21",
+   "status": "consolidated",
+   "evidence": "contradicted",
+   "page": 2,
+   "parent": "television equipment / cathode rays"
+  },
+  {
+   "name": "radio equipment",
+   "pair": [
+    6,
+    10
+   ],
+   "card_code": "26+30",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "radio systems",
+   "pair": [
+    9,
+    16
+   ],
+   "card_code": "20+27",
+   "status": "consolidated",
+   "evidence": "weak",
+   "page": 2,
+   "parent": "radio equipment"
+  },
+  {
+   "name": "communications systems",
+   "pair": [
+    15,
+    24
+   ],
+   "card_code": "12+21",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "video tape",
+   "pair": [
+    6,
+    18
+   ],
+   "card_code": "18+30",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "tape recording & recording engineering",
+   "pair": [
+    4,
+    14
+   ],
+   "card_code": "22+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "film technology",
+   "pair": [
+    5,
+    12
+   ],
+   "card_code": "24+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "photography technology",
+   "pair": [
+    14,
+    22
+   ],
+   "card_code": "14+22",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "spare 15+30",
+   "pair": [
+    6,
+    21
+   ],
+   "card_code": "15+30",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "architect/designers",
+   "pair": [
+    14,
+    25
+   ],
+   "card_code": "11+22",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "industrial designer",
+   "pair": [
+    4,
+    12
+   ],
+   "card_code": "24+32",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "scientific journalist/editor",
+   "pair": [
+    9,
+    10
+   ],
+   "card_code": "26+27",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "perceptual psychology",
+   "pair": [
+    3,
+    15
+   ],
+   "card_code": "21+33",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "spare 25+27",
+   "pair": [
+    9,
+    11
+   ],
+   "card_code": "25+27",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 13+16",
+   "pair": [
+    20,
+    23
+   ],
+   "card_code": "13+16",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 18+31",
+   "pair": [
+    5,
+    18
+   ],
+   "card_code": "18+31",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 19+20",
+   "pair": [
+    16,
+    17
+   ],
+   "card_code": "19+20",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "spare 24+27",
+   "pair": [
+    9,
+    12
+   ],
+   "card_code": "24+27",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "heat measurement",
+   "pair": [
+    3,
+    12
+   ],
+   "card_code": "24+33",
+   "status": "retired",
+   "evidence": "untestable",
+   "page": 2,
+   "note": "struck out on the key; HEAT MEASUREMENT moved to CRYOGENICS 13+28"
+  },
+  {
+   "name": "environmental media",
+   "pair": [
+    5,
+    17
+   ],
+   "card_code": "19+31",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "machine design",
+   "pair": [
+    6,
+    25
+   ],
+   "card_code": "11+30",
+   "status": "active",
+   "evidence": "contradicted",
+   "page": 2,
+   "note": "cards contradict (1/5) - machine-design people punch MECHANICAL ENGINEER 23+29 instead; possibly a late addition"
+  },
+  {
+   "name": "aeronautics & aerospace",
+   "pair": [
+    7,
+    11
+   ],
+   "card_code": "25+29",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "transistor - design",
+   "pair": [
+    7,
+    23
+   ],
+   "card_code": "13+29",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "microwaves",
+   "pair": [
+    19,
+    22
+   ],
+   "card_code": "14+17",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "hydraulics + pneumatics",
+   "pair": [
+    11,
+    17
+   ],
+   "card_code": "19+25",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "cryogenics + heat measurement",
+   "pair": [
+    8,
+    23
+   ],
+   "card_code": "13+28",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "cybernetics & control theory",
+   "pair": [
+    8,
+    18
+   ],
+   "card_code": "18+28",
+   "status": "active",
+   "evidence": "confirmed",
+   "page": 2
+  },
+  {
+   "name": "spare 15+18",
+   "pair": [
+    18,
+    21
+   ],
+   "card_code": "15+18",
+   "status": "spare",
+   "evidence": "spare",
+   "page": 2
+  },
+  {
+   "name": "radiation (irradiation) & fluidics(?)",
+   "pair": [
+    6,
+    12
+   ],
+   "card_code": "24+30",
+   "status": "active",
+   "evidence": "contradicted",
+   "page": 2,
+   "note": "cards contradict this assignment (2/16) - radar/x-ray people punch 22+29 instead; the key itself ends it with a '?'"
+  }
+ ],
+ "top_proximity": [
+  {
+   "name": "New York City",
+   "positions": [
+    32,
+    33,
+    34
+   ],
+   "excluded": [],
+   "evidence": "all three clipped - 98% of 162 nyc cards"
+  },
+  {
+   "name": "within 50 miles of NYC",
+   "positions": [
+    32,
+    34
+   ],
+   "excluded": [
+    33
+   ],
+   "evidence": "two holes separated by one unclipped (33 must be intact)"
+  },
+  {
+   "name": "everywhere else",
+   "positions": [
+    34
+   ],
+   "excluded": [
+    32,
+    33
+   ],
+   "evidence": "base hole only - 99% of 261 far cards"
+  }
+ ],
+ "bottom_geo_triples": {
+  "states": [
+   {
+    "name": "New York",
+    "triple": [
+     6,
+     15,
+     16
+    ],
+    "n": 270,
+    "recall": 0.963,
+    "false_drop": 0.0336
+   },
+   {
+    "name": "New Jersey",
+    "triple": [
+     17,
+     22,
+     24
+    ],
+    "n": 104,
+    "recall": 0.933,
+    "false_drop": 0.0065
+   },
+   {
+    "name": "California",
+    "triple": [
+     3,
+     6,
+     8
+    ],
+    "n": 49,
+    "recall": 0.939,
+    "false_drop": 0.003
+   },
+   {
+    "name": "Massachusetts",
+    "triple": [
+     3,
+     5,
+     7
+    ],
+    "n": 46,
+    "recall": 1.0,
+    "false_drop": 0.0045
+   },
+   {
+    "name": "Pennsylvania",
+    "triple": [
+     5,
+     9,
+     20
+    ],
+    "n": 36,
+    "recall": 0.889,
+    "false_drop": 0.0
+   },
+   {
+    "name": "Canada",
+    "triple": [
+     5,
+     12,
+     15
+    ],
+    "n": 23,
+    "recall": 0.696,
+    "false_drop": 0.0014
+   },
+   {
+    "name": "Connecticut",
+    "triple": [
+     9,
+     10,
+     22
+    ],
+    "n": 18,
+    "recall": 1.0,
+    "false_drop": 0.0
+   },
+   {
+    "name": "Maryland",
+    "triple": [
+     3,
+     4,
+     18
+    ],
+    "n": 18,
+    "recall": 1.0,
+    "false_drop": 0.0043
+   },
+   {
+    "name": "Washington",
+    "triple": [
+     7,
+     8,
+     24
+    ],
+    "n": 17,
+    "recall": 0.706,
+    "false_drop": 0.0029
+   },
+   {
+    "name": "Ohio",
+    "triple": [
+     8,
+     16,
+     22
+    ],
+    "n": 12,
+    "recall": 0.917,
+    "false_drop": 0.0
+   },
+   {
+    "name": "Virginia",
+    "triple": [
+     6,
+     21,
+     22
+    ],
+    "n": 10,
+    "recall": 0.6,
+    "false_drop": 0.0028
+   },
+   {
+    "name": "Texas",
+    "triple": [
+     3,
+     14,
+     24
+    ],
+    "n": 9,
+    "recall": 0.778,
+    "false_drop": 0.0
+   },
+   {
+    "name": "Illinois",
+    "triple": [
+     8,
+     9,
+     22
+    ],
+    "n": 9,
+    "recall": 1.0,
+    "false_drop": 0.0
+   },
+   {
+    "name": "Washington D.C.",
+    "triple": [
+     5,
+     16,
+     18
+    ],
+    "n": 7,
+    "recall": 0.571,
+    "false_drop": 0.0028
+   },
+   {
+    "name": "Michigan",
+    "triple": [
+     6,
+     14,
+     18
+    ],
+    "n": 5,
+    "recall": 1.0,
+    "false_drop": 0.0
+   }
+  ],
+  "cities": [
+   {
+    "name": "Seattle, WA",
+    "triple": [
+     5,
+     6,
+     11
+    ],
+    "n": 8,
+    "recall": 1.0,
+    "note": "co-punched with the Washington state triple"
+   },
+   {
+    "name": "Montreal, Canada",
+    "triple": [
+     6,
+     17,
+     20
+    ],
+    "n": 4,
+    "recall": 1.0,
+    "note": "distinct from Toronto's (5,12,15) - small sample"
+   },
+   {
+    "name": "Cambridge, MA",
+    "triple": [
+     3,
+     11,
+     21
+    ],
+    "n": 11,
+    "recall": null,
+    "note": "tentative - positions 11+21 always-on beyond the MA triple; third hole unresolved"
+   },
+   {
+    "name": "Baltimore, MD",
+    "triple": [
+     17,
+     22,
+     23
+    ],
+    "n": 4,
+    "recall": null,
+    "note": "tentative - small sample"
+   }
+  ]
+ },
+ "right_name_letters": {
+  "A": {
+   "n": 20,
+   "pair_natural": [
+    12,
+    13
+   ],
+   "recall": 0.65
+  },
+  "B": {
+   "n": 55,
+   "pair_natural": [
+    11,
+    13
+   ],
+   "recall": 0.509
+  },
+  "C": {
+   "n": 40,
+   "pair_natural": [
+    9,
+    13
+   ],
+   "recall": 0.425
+  },
+  "D": {
+   "n": 33,
+   "pair_natural": [
+    9,
+    13
+   ],
+   "recall": 0.394
+  },
+  "E": {
+   "n": 11,
+   "pair_natural": [
+    8,
+    13
+   ],
+   "recall": 0.727
+  },
+  "F": {
+   "n": 44,
+   "pair_natural": [
+    7,
+    13
+   ],
+   "recall": 0.432
+  },
+  "G": {
+   "n": 61,
+   "pair_natural": [
+    2,
+    13
+   ],
+   "recall": 0.295
+  },
+  "H": {
+   "n": 36,
+   "pair_natural": [
+    11,
+    12
+   ],
+   "recall": 0.639
+  },
+  "I": {
+   "n": 8,
+   "pair_natural": [
+    9,
+    10
+   ],
+   "recall": 0.25
+  },
+  "J": {
+   "n": 8,
+   "pair_natural": [
+    6,
+    10
+   ],
+   "recall": 0.5
+  },
+  "K": {
+   "n": 32,
+   "pair_natural": [
+    9,
+    12
+   ],
+   "recall": 0.406
+  },
+  "L": {
+   "n": 34,
+   "pair_natural": [
+    8,
+    12
+   ],
+   "recall": 0.324
+  },
+  "M": {
+   "n": 59,
+   "pair_natural": [
+    7,
+    12
+   ],
+   "recall": 0.254
+  },
+  "N": {
+   "n": 15,
+   "pair_natural": [
+    2,
+    12
+   ],
+   "recall": 0.4
+  },
+  "O": {
+   "n": 15,
+   "pair_natural": [
+    10,
+    11
+   ],
+   "recall": 0.6
+  },
+  "P": {
+   "n": 43,
+   "pair_natural": [
+    10,
+    11
+   ],
+   "recall": 0.512
+  },
+  "R": {
+   "n": 35,
+   "pair_natural": [
+    9,
+    11
+   ],
+   "recall": 0.514
+  },
+  "S": {
+   "n": 84,
+   "pair_natural": [
+    4,
+    11
+   ],
+   "recall": 0.226
+  },
+  "T": {
+   "n": 19,
+   "pair_natural": [
+    9,
+    10
+   ],
+   "recall": 0.526
+  },
+  "V": {
+   "n": 11,
+   "pair_natural": [
+    9,
+    10
+   ],
+   "recall": 0.636
+  },
+  "W": {
+   "n": 39,
+   "pair_natural": [
+    8,
+    10
+   ],
+   "recall": 0.487
+  },
+  "Z": {
+   "n": 7,
+   "pair_natural": [
+    6,
+    7
+   ],
+   "recall": 0.571
+  }
+ },
+ "left_company_letters": {
+  "A": {
+   "n": 39,
+   "pair_natural": [
+    3,
+    4
+   ],
+   "recall": 0.795
+  },
+  "B": {
+   "n": 64,
+   "pair_natural": [
+    3,
+    5
+   ],
+   "recall": 0.781
+  },
+  "C": {
+   "n": 57,
+   "pair_natural": [
+    3,
+    6
+   ],
+   "recall": 0.579
+  },
+  "D": {
+   "n": 9,
+   "pair_natural": [
+    3,
+    8
+   ],
+   "recall": 0.444
+  },
+  "E": {
+   "n": 21,
+   "pair_natural": [
+    3,
+    8
+   ],
+   "recall": 0.667
+  },
+  "F": {
+   "n": 8,
+   "pair_natural": [
+    3,
+    9
+   ],
+   "recall": 0.625
+  },
+  "G": {
+   "n": 31,
+   "pair_natural": [
+    3,
+    10
+   ],
+   "recall": 0.323
+  },
+  "H": {
+   "n": 20,
+   "pair_natural": [
+    4,
+    5
+   ],
+   "recall": 0.65
+  },
+  "I": {
+   "n": 39,
+   "pair_natural": [
+    4,
+    5
+   ],
+   "recall": 0.436
+  },
+  "J": {
+   "n": 8,
+   "pair_natural": [
+    4,
+    6
+   ],
+   "recall": 0.75
+  },
+  "K": {
+   "n": 7,
+   "pair_natural": [
+    4,
+    7
+   ],
+   "recall": 0.714
+  },
+  "L": {
+   "n": 18,
+   "pair_natural": [
+    4,
+    8
+   ],
+   "recall": 0.611
+  },
+  "M": {
+   "n": 34,
+   "pair_natural": [
+    4,
+    10
+   ],
+   "recall": 0.412
+  },
+  "N": {
+   "n": 42,
+   "pair_natural": [
+    4,
+    14
+   ],
+   "recall": 0.643
+  },
+  "P": {
+   "n": 34,
+   "pair_natural": [
+    5,
+    6
+   ],
+   "recall": 0.794
+  },
+  "R": {
+   "n": 22,
+   "pair_natural": [
+    5,
+    7
+   ],
+   "recall": 0.545
+  },
+  "S": {
+   "n": 54,
+   "pair_natural": [
+    5,
+    11
+   ],
+   "recall": 0.519
+  },
+  "T": {
+   "n": 34,
+   "pair_natural": [
+    5,
+    14
+   ],
+   "recall": 0.353
+  },
+  "U": {
+   "n": 53,
+   "pair_natural": [
+    6,
+    7
+   ],
+   "recall": 0.755
+  },
+  "V": {
+   "n": 7,
+   "pair_natural": [
+    6,
+    7
+   ],
+   "recall": 1.0
+  },
+  "W": {
+   "n": 24,
+   "pair_natural": [
+    6,
+    8
+   ],
+   "recall": 0.708
+  }
+ },
+ "left_markers": [
+  {
+   "name": "good guys",
+   "positions": [
+    15
+   ],
+   "evidence": "informal marker per the 1968 notes ('second hole from the bottom'); notched members average 3.7 back-of-card contacts vs 2.2"
+  },
+  {
+   "name": "highly connected (tentative)",
+   "positions": [
+    2
+   ],
+   "evidence": "unnumbered hole, 53 cards, 6.3 avg back-of-card contacts vs 2.5 - possibly a stricter tier of the good-guys marker"
+  }
+ ]
+}

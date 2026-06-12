@@ -17,7 +17,12 @@ kin), published as a static GitHub Pages site.
 
 - `edge_notch_card.js` — the card-diagram component used by the explorers.
 - `cards_demo.json` — packed deck data (notches + the fields the labels render) used by the sort demos.
-- `notch_decoding.json` — the decoded position→category map used by the explorers.
+- `key_decoding.json` — the position→category map used by the explorers, built from the
+  ORIGINAL punch-code key and 1968 operating notes (validated against the cards): top-edge
+  specialty codes with status/evidence, the NYC proximity code, 3-needle state & city
+  codes on the bottom, surname-initial pairs on the right, company-initial pairs and the
+  informal "good guys" marker on the left. Replaces the earlier statistical
+  `notch_decoding.json`.
 
 `sort_demo.html` also loads [three.js](https://threejs.org/) and
 [poly2tri](https://github.com/r3mi/poly2tri.js) from a CDN.

@@ -22,6 +22,41 @@ const COMPANION_PALETTE = [
   '#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d',
 ];
 
+// --- Card-system numbering ---------------------------------------------
+// Our data uses "natural order": 1-indexed, left-to-right on top/bottom and
+// top-to-bottom on left/right, front side in canonical orientation. The
+// physical card prints its own position numbers next to most holes:
+//   top:    natural 3..35 → "33".."1"   (reversed, no letter prefix)
+//   bottom: natural 3..35 → "B1".."B33"
+//   left:   natural 3..14 → "L1".."L12"
+//   right:  natural 2..13 → "R12".."R1" (reversed)
+// All other holes — including the four shared corner holes — have no printed
+// number; naturalToCard returns null for those.
+function naturalToCard(edge, pos) {
+  switch (edge) {
+    case 'top':    return (pos >= 3 && pos <= 35) ? String(36 - pos) : null;
+    case 'bottom': return (pos >= 3 && pos <= 35) ? 'B' + (pos - 2) : null;
+    case 'left':   return (pos >= 3 && pos <= 14) ? 'L' + (pos - 2) : null;
+    case 'right':  return (pos >= 2 && pos <= 13) ? 'R' + (14 - pos) : null;
+    default:       return null;
+  }
+}
+
+// Inverse: "33" / "B7" / "L3" / "R12" (case-insensitive) → {edge, pos} in
+// natural order, or null for labels the card doesn't print.
+function cardToNatural(label) {
+  const m = /^([BLR]?)(\d+)$/.exec(String(label).trim().toUpperCase());
+  if (!m) return null;
+  const n = Number(m[2]);
+  switch (m[1]) {
+    case '':  return (n >= 1 && n <= 33) ? { edge: 'top',    pos: 36 - n } : null;
+    case 'B': return (n >= 1 && n <= 33) ? { edge: 'bottom', pos: n + 2 }  : null;
+    case 'L': return (n >= 1 && n <= 12) ? { edge: 'left',   pos: n + 2 }  : null;
+    case 'R': return (n >= 1 && n <= 12) ? { edge: 'right',  pos: 14 - n } : null;
+  }
+  return null;
+}
+
 function el(tag, attrs = {}, parent = null) {
   const node = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -45,10 +80,59 @@ function buildCategoryIndex(decoding) {
   const out = { top: [], bottom: [], left: [], right: [] };
   if (!decoding) return out;
 
-  // Top: technicalFields, each with a 2-position pair. List every field
-  // individually (duplicates with the same pair are kept — they will all light
-  // up the same two slots when hovered).
-  if (decoding.top_field_codes) {
+  // Top, preferred shape: codes from the ORIGINAL punch-code key
+  // (scripts/data/punch_code_key.json via build_key_decoding.py). Each entry
+  // carries a status — active / consolidated (folded into `parent`) /
+  // retired / spare — plus the data-validation verdict in `evidence`, so the
+  // UI can convey how certain each code is.
+  if (decoding.top_key_codes) {
+    for (const e of decoding.top_key_codes) {
+      out.top.push({
+        name: e.name,
+        positions: e.pair.slice(),
+        meta: {
+          kind: 'key',
+          status: e.status,
+          evidence: e.evidence || null,
+          parent: e.parent || null,
+          cardCode: e.card_code || null,
+          note: e.note || null,
+          // reuse the confidence-band label styling: active codes render
+          // full-weight, consolidated dimmer, retired/spare lightest
+          confidence: e.status === 'active'
+            ? (e.evidence === 'confirmed' ? 'high' : 'medium')
+            : (e.status === 'consolidated' ? 'low' : 'anecdotal'),
+        },
+      });
+    }
+    out.top.sort((a, b) => {
+      const pa = Math.min(...a.positions), pb = Math.min(...b.positions);
+      if (pa !== pb) return pa - pb;
+      const sa = Math.max(...a.positions), sb = Math.max(...b.positions);
+      if (sa !== sb) return sa - sb;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  // Top: the NYC proximity code (natural 32/33/34, per Rosenboom's 1968
+  // notes — see EDGES_V2.md). `excluded` lists positions that must be
+  // UN-notched for the class to apply (e.g. "two holes separated by one
+  // unclipped").
+  if (decoding.top_proximity) {
+    for (const e of decoding.top_proximity) {
+      out.top.push({
+        name: e.name,
+        positions: e.positions.slice(),
+        meta: { kind: 'proximity', excluded: (e.excluded || []).slice(),
+                evidence: e.evidence || null, confidence: 'high' },
+      });
+    }
+  }
+
+  // Top, legacy shape: statistically-decoded technicalFields, each with a
+  // 2-position pair. List every field individually (duplicates with the same
+  // pair are kept — they will all light up the same two slots when hovered).
+  if (!decoding.top_key_codes && decoding.top_field_codes) {
     for (const [name, info] of Object.entries(decoding.top_field_codes)) {
       out.top.push({
         name,
@@ -67,7 +151,67 @@ function buildCategoryIndex(decoding) {
     });
   }
 
-  // Bottom: geographic. NEW SHAPE — each state has one PRIMARY notch (the
+  // Bottom: geographic 3-hole codes (states/countries + city triples) from
+  // the v2 decode — the operator sorted these upside down with THREE
+  // needles simultaneously.
+  if (decoding.bottom_geo_triples) {
+    const bg = decoding.bottom_geo_triples;
+    for (const s of (bg.states || [])) {
+      out.bottom.push({
+        name: s.name,
+        positions: s.triple.slice(),
+        meta: { kind: 'geo3', n: s.n, recall: s.recall, falseDrop: s.false_drop,
+                confidence: (s.n >= 10 && (s.recall || 0) >= 0.85) ? 'high'
+                          : (s.n >= 9 ? 'medium' : 'low') },
+      });
+    }
+    for (const c of (bg.cities || [])) {
+      out.bottom.push({
+        name: c.name,
+        positions: c.triple.slice(),
+        meta: { kind: 'geo3', city: true, n: c.n, recall: c.recall,
+                note: c.note || null,
+                confidence: c.recall === 1 ? 'medium' : 'anecdotal' },
+      });
+    }
+  }
+
+  // Right: surname first letter as sequential 2-hole pairs (v2 decode).
+  if (decoding.right_name_letters) {
+    for (const [letter, info] of Object.entries(decoding.right_name_letters)) {
+      out.right.push({
+        name: letter,
+        positions: info.pair_natural.slice(),
+        meta: { kind: 'nameletter', n: info.n, recall: info.recall,
+                confidence: (info.recall || 0) >= 0.5 ? 'medium' : 'low' },
+      });
+    }
+    out.right.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // Left: company first letter pairs + the informal markers (v2 decode).
+  if (decoding.left_company_letters) {
+    for (const [letter, info] of Object.entries(decoding.left_company_letters)) {
+      out.left.push({
+        name: letter,
+        positions: info.pair_natural.slice(),
+        meta: { kind: 'companyletter', n: info.n, recall: info.recall,
+                confidence: (info.recall || 0) >= 0.5 ? 'medium' : 'low' },
+      });
+    }
+    out.left.sort((a, b) => a.name.localeCompare(b.name));
+  }
+  if (decoding.left_markers) {
+    for (const m of decoding.left_markers) {
+      out.left.push({
+        name: m.name,
+        positions: m.positions.slice(),
+        meta: { kind: 'marker', evidence: m.evidence || null, confidence: 'medium' },
+      });
+    }
+  }
+
+  // Bottom, legacy shape: each state has one PRIMARY notch (the
   // single-needle code an operator would actually use) plus zero or more
   // COMPANIONS (positions nearly always co-notched with the primary, likely
   // wide grouped notches or within-state refinements). The viz renders the
@@ -175,6 +319,10 @@ class EdgeNotchCard {
     // distinct .enc-companion style instead of the same notch as the hovered
     // hole, so a pair reads as "this hole + its linked hole(s)".
     this.highlightCompanions = !!options.highlightCompanions;
+    // When true, the position numbers printed on the physical card ("33".."1"
+    // on top, B/L/R-prefixed elsewhere) are drawn inside the card next to
+    // each hole. Holes the card leaves unnumbered get nothing.
+    this.showCardNumbers = !!options.showCardNumbers;
     // Persistent user-selected notches (canonical "edge:pos" keys). These stay
     // notched across hovers; transient hover/preview draws on top.
     this.selectedNotches = new Set();
@@ -330,8 +478,9 @@ class EdgeNotchCard {
     this.svg.style.display = 'block';
     this.container.appendChild(this.svg);
 
-    // Groups in draw order: card → slots → connector lines → labels
+    // Groups in draw order: card → printed numbers → slots → connector lines → labels
     this.gCard       = el('g', { class: 'enc-card-group' }, this.svg);
+    this.gNums       = el('g', { class: 'enc-card-nums' }, this.svg);
     this.gSlots      = el('g', { class: 'enc-slots' }, this.svg);
     this.gLines      = el('g', { class: 'enc-lines' }, this.svg);
     this.gLabels     = el('g', { class: 'enc-labels' }, this.svg);
@@ -381,6 +530,9 @@ class EdgeNotchCard {
       .enc-edge-title { font-size: 10px; fill: #888; text-transform: uppercase;
                          letter-spacing: 0.08em; pointer-events: none; }
       .enc-chamfer { fill: #f6efd6; stroke: #2a2a2a; stroke-width: 1.2; }
+      /* Position numbers printed on the physical card, drawn just inside the
+         hole row in the card's faded-ink brown. */
+      .enc-card-num { fill: #8a7340; pointer-events: none; }
       /* Persistent user-selected notch ("needle"). Overrides the transient
          active fill so chosen positions stay distinct. */
       .enc-hole.enc-active.enc-selected { fill: #11324f; stroke: #07203a; }
@@ -471,11 +623,12 @@ class EdgeNotchCard {
   // --- Internal: render ---------------------------------------------------
 
   _renderAll() {
-    [this.gCard, this.gSlots, this.gLines, this.gLabels].forEach((g) => {
+    [this.gCard, this.gNums, this.gSlots, this.gLines, this.gLabels].forEach((g) => {
       while (g.firstChild) g.removeChild(g.firstChild);
     });
     this._renderCard();
     this._renderSlots();
+    this._renderCardNumbers();
     this._applySelected();
     this._renderLabels();
     // Re-apply highlight if active (e.g. after a resize)
@@ -692,6 +845,35 @@ class EdgeNotchCard {
     }
   }
 
+  // Draw the card-system position numbers inside the card, next to each
+  // numbered hole (mimicking the print on the physical card, but kept upright
+  // for legibility). Unnumbered holes get nothing.
+  _renderCardNumbers() {
+    if (!this.showCardNumbers) return;
+    const fontSize = this.holeR * 1.15;
+    for (const edge of ['top', 'bottom', 'left', 'right']) {
+      const count = this.slotCounts[edge];
+      for (let pos = 1; pos <= count; pos++) {
+        const label = naturalToCard(edge, pos);
+        if (label == null) continue;
+        const { cx, cy } = this._slotPosition(edge, pos);
+        let x = cx, y = cy, anchor = 'middle';
+        if (edge === 'top')         { y = cy + this.holeR * 2.6; }
+        else if (edge === 'bottom') { y = cy - this.holeR * 2.0; }
+        else if (edge === 'left')   { x = cx + this.holeR * 1.9; anchor = 'start'; }
+        else                        { x = cx - this.holeR * 1.9; anchor = 'end'; }
+        const t = el('text', {
+          x, y,
+          'text-anchor': anchor,
+          'dominant-baseline': (edge === 'left' || edge === 'right') ? 'middle' : 'auto',
+          'font-size': fontSize.toFixed(1),
+          class: 'enc-card-num',
+        }, this.gNums);
+        t.textContent = label;
+      }
+    }
+  }
+
   _renderLabels() {
     this.labelNodes = { top: [], bottom: [], left: [], right: [] };
     if (!this.showEdgeLabels) return;
@@ -699,10 +881,10 @@ class EdgeNotchCard {
 
     // Edge titles
     const edgeTitles = {
-      top:    'TOP — technical fields (2-of-N)',
-      bottom: 'BOTTOM — geographic',
-      right:  'RIGHT — surname letter',
-      left:   'LEFT — unclassified',
+      top:    'TOP — areas of work (punch-code key) + NYC proximity',
+      bottom: 'BOTTOM — states & cities (3-hole codes)',
+      right:  'RIGHT — surname first letter',
+      left:   'LEFT — company first letter + markers',
     };
     el('text', {
       x: this.cardX + this.cardW / 2, y: this.gutters.top * 0.35,
@@ -790,7 +972,29 @@ class EdgeNotchCard {
       // and confidence so users can see *why* a state's label is dim.
       const tt = el('title', {}, g);
       let tooltip = cat.fullName ? `${cat.fullName} · positions ${cat.positions.join(', ')}` : null;
-      if (cat.meta && cat.meta.kind === 'geo' && cat.meta.primary) {
+      if (cat.meta && cat.meta.kind === 'key') {
+        const m = cat.meta;
+        tooltip = `${cat.name} · code ${m.cardCode || cat.positions.join('+')} (${m.status}`
+                + (m.evidence ? `, ${m.evidence} by card data)` : ')');
+        if (m.parent) tooltip += `\n  folded into: ${m.parent}`;
+        if (m.note) tooltip += `\n  ${m.note}`;
+      } else if (cat.meta && cat.meta.kind === 'proximity') {
+        tooltip = `${cat.name} · holes ${cat.positions.join('+')}`
+                + (cat.meta.excluded.length ? ` with ${cat.meta.excluded.join(',')} UNclipped` : '')
+                + (cat.meta.evidence ? `\n  ${cat.meta.evidence}` : '');
+      } else if (cat.meta && cat.meta.kind === 'geo3') {
+        const m = cat.meta;
+        tooltip = `${cat.name} · 3-needle code ${cat.positions.join('+')}`
+                + (m.n != null ? ` (n=${m.n}` + (m.recall != null ? `, recall ${(m.recall * 100).toFixed(0)}%` : '') + ')' : '');
+        if (m.note) tooltip += `\n  ${m.note}`;
+      } else if (cat.meta && (cat.meta.kind === 'nameletter' || cat.meta.kind === 'companyletter')) {
+        const what = cat.meta.kind === 'nameletter' ? 'surname' : 'company';
+        tooltip = `${what} starting with ${cat.name} · pair ${cat.positions.join('+')}`
+                + ` (n=${cat.meta.n}, recall ${((cat.meta.recall || 0) * 100).toFixed(0)}% — fuzzy code)`;
+      } else if (cat.meta && cat.meta.kind === 'marker') {
+        tooltip = `${cat.name} · position ${cat.positions.join('+')}`
+                + (cat.meta.evidence ? `\n  ${cat.meta.evidence}` : '');
+      } else if (cat.meta && cat.meta.kind === 'geo' && cat.meta.primary) {
         const m = cat.meta;
         tooltip = `${cat.name} (n=${m.n}, ${m.confidence || 'unknown'} confidence)`
                 + `\n  primary pos ${m.primary.pos} @ ${(m.primary.recall * 100).toFixed(1)}% recall`;
@@ -848,7 +1052,7 @@ class EdgeNotchCard {
         cats.push({ edge: a.edge, name: c.name, positions: c.positions.slice(), meta: c.meta });
       }
     }
-    return { edge, pos, aliases, categories: cats };
+    return { edge, pos, cardPos: naturalToCard(edge, pos), aliases, categories: cats };
   }
 
   _activateCategory(edge, name, { source }) {
@@ -1047,9 +1251,15 @@ class EdgeNotchCard {
   }
 }
 
+// Numbering helpers are also available as statics on the class.
+EdgeNotchCard.naturalToCard = naturalToCard;
+EdgeNotchCard.cardToNatural = cardToNatural;
+
 // UMD-ish export
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = EdgeNotchCard;
+  module.exports.naturalToCard = naturalToCard;
+  module.exports.cardToNatural = cardToNatural;
 } else if (typeof window !== 'undefined') {
   window.EdgeNotchCard = EdgeNotchCard;
 }
